@@ -1,0 +1,45 @@
+# Development files
+.env
+.env.local
+.env.development
+
+# Dependencies
+node_modules
+
+# Build outputs
+.next/static/chunks
+.next/cache
+
+# Development tools
+.vscode
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage
+.nyc_output
+
+# IDE
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Temporary files
+tmp
+temp
+
+# Documentation that's not needed in deployment
+README.md
+DEPLOYMENT.md
+docs/
+
+# Scripts that shouldn't be deployed
+scripts/test-*
+scripts/dev-*
+
+# Large files that aren't needed
+public/examples
+public/demos

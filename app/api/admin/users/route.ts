@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -31,7 +35,7 @@ export async function GET() {
     })
 
     // Map the results to match the expected interface
-    const mappedUsers = users.map(user => ({
+    const mappedUsers = users.map((user: any) => ({
       ...user,
       subscription: user.subscriptionPlan, // Map new field to old interface
     }))

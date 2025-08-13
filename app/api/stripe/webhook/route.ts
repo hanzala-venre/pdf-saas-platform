@@ -8,7 +8,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2023-10-16",
 })
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
+// Use different webhook secrets for development and production
+const endpointSecret = process.env.NODE_ENV === 'production' 
+  ? process.env.STRIPE_WEBHOOK_SECRET_PROD || process.env.STRIPE_WEBHOOK_SECRET!
+  : process.env.STRIPE_WEBHOOK_SECRET_DEV || process.env.STRIPE_WEBHOOK_SECRET!
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 // Helper function to determine if plan change is an upgrade
 function isPlanUpgrade(oldPlan: string, newPlan: string): boolean {

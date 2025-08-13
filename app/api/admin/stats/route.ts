@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma"
 import Stripe from "stripe"
 import type { Session } from "next-auth"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2023-10-16",
 })

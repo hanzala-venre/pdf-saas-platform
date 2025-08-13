@@ -4,12 +4,25 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import type { Session } from "next-auth"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
+    // Add timeout and error handling for database operations
     const session = await getServerSession(authOptions) as Session | null
 
     if (!session?.user?.email || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check if database is available
+    try {
+      await prisma.$queryRaw`SELECT 1`
+    } catch (dbError) {
+      console.error("Database connection error:", dbError)
+      return NextResponse.json({ error: "Database unavailable" }, { status: 503 })
     }
 
     const now = new Date()
@@ -96,7 +109,7 @@ export async function GET() {
       },
     })
 
-    const subscriptionDistribution = subscriptionCounts.map(item => ({
+    const subscriptionDistribution = subscriptionCounts.map((item: any) => ({
       plan: item.subscriptionPlan,
       count: item._count.subscriptionPlan,
       percentage: Math.round((item._count.subscriptionPlan / totalUsers) * 100),
@@ -137,7 +150,7 @@ export async function GET() {
       },
     })
 
-    const formattedOperationsByType = operationsByType.map(item => ({
+    const formattedOperationsByType = operationsByType.map((item: any) => ({
       type: item.type,
       count: item._count.type,
       percentage: Math.round((item._count.type / totalOperations) * 100),
@@ -189,7 +202,7 @@ export async function GET() {
     })
 
     const averageProcessingTime = completedOperations.length > 0
-      ? completedOperations.reduce((sum, op) => sum + (op.processingTime || 0), 0) / completedOperations.length
+      ? completedOperations.reduce((sum: number, op: any) => sum + (op.processingTime || 0), 0) / completedOperations.length
       : 0
 
     const successfulOperationsCount = await prisma.pdfOperation.count({

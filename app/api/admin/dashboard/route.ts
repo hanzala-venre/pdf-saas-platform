@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma"
 import Stripe from "stripe"
 import type { Session } from "next-auth"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2023-10-16",
 })
@@ -120,14 +124,14 @@ export async function GET() {
     }
 
     // Format the response data
-    const formattedRecentUsers = recentUsers.map(user => ({
+    const formattedRecentUsers = recentUsers.map((user: any) => ({
       ...user,
       subscription: user.subscriptionPlan,
       subscriptionStatus: user.subscriptionStatus,
       createdAt: user.createdAt.toISOString(),
     }))
 
-    const formattedRecentOperations = recentOperations.map(operation => ({
+    const formattedRecentOperations = recentOperations.map((operation: any) => ({
       ...operation,
       createdAt: operation.createdAt.toISOString(),
     }))
