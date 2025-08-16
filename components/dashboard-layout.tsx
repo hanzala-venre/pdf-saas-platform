@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { FileText, Home, Settings, CreditCard, History, Menu, X, Wrench } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image";
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -40,8 +41,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
             <div className="flex h-16 items-center justify-between px-4 border-b">
               <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-                <FileText className="h-8 w-8 text-blue-600" />
-                PDFTools Pro
+                <Image
+                              src="/logo.png"
+                              alt="Logo"
+                              width={96}
+                              height={32}
+                            />
               </Link>
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                 <X className="h-6 w-6" />

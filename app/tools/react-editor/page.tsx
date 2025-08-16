@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { useSubscription } from "@/hooks/use-subscription"
 import { usePDFToolAccess } from "@/hooks/use-pdf-tool-access"
+import { useOneTimePayment } from "@/hooks/use-one-time-payment"
 import { WatermarkNotice } from "@/components/watermark-notice"
 
 interface Annotation {

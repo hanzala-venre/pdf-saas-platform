@@ -17,6 +17,12 @@ export function useOneTimePayment() {
 
   // Check if user has valid one-time access
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return
+    }
+    
     try {
       const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
       if (savedData) {
@@ -35,7 +41,9 @@ export function useOneTimePayment() {
       }
     } catch (error) {
       console.error('Error loading one-time payment data:', error)
-      localStorage.removeItem(ONE_TIME_STORAGE_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(ONE_TIME_STORAGE_KEY)
+      }
       setHasOneTimeAccess(false)
       setCreditsRemaining(0)
     } finally {
@@ -44,6 +52,8 @@ export function useOneTimePayment() {
   }, [])
 
   const activateOneTimeAccess = (purchaseId?: string) => {
+    if (typeof window === 'undefined') return
+    
     const now = Date.now()
     const id = purchaseId || `purchase_${now}_${Math.random().toString(36).substr(2, 9)}`
     
@@ -60,6 +70,8 @@ export function useOneTimePayment() {
   }
 
   const consumeOneTimeCredit = (): boolean => {
+    if (typeof window === 'undefined') return false
+    
     try {
       const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
       if (savedData) {
@@ -92,6 +104,8 @@ export function useOneTimePayment() {
   }
 
   const clearOneTimeAccess = () => {
+    if (typeof window === 'undefined') return
+    
     localStorage.removeItem(ONE_TIME_STORAGE_KEY)
     setHasOneTimeAccess(false)
     setCreditsRemaining(0)
@@ -99,6 +113,11 @@ export function useOneTimePayment() {
 
   const getCreditsStatus = (): { hasCredits: boolean; remaining: number; purchaseId?: string } => {
     try {
+      // Check if we're on the client side
+      if (typeof window === 'undefined') {
+        return { hasCredits: false, remaining: 0 }
+      }
+      
       const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
       if (savedData) {
         const data: OneTimePaymentData = JSON.parse(savedData)
@@ -118,6 +137,8 @@ export function useOneTimePayment() {
   }
 
   const markCreditAsConsumed = () => {
+    if (typeof window === 'undefined') return
+    
     // This is called when server confirms credit consumption
     localStorage.removeItem(ONE_TIME_STORAGE_KEY)
     setHasOneTimeAccess(false)
