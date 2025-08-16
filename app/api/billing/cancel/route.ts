@@ -22,6 +22,7 @@ export async function POST() {
         id: true,
         stripeSubscriptionId: true,
         subscriptionPlan: true,
+        subscriptionStatus: true,
       },
     })
 
@@ -29,26 +30,54 @@ export async function POST() {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    if (!user.stripeSubscriptionId) {
-      return NextResponse.json({ error: "No active subscription found" }, { status: 400 })
+    // If user has an active subscription, cancel it
+    if (user.stripeSubscriptionId && user.subscriptionStatus === "active") {
+      try {
+        const subscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+          cancel_at_period_end: true,
+        })
+
+        // Update user in database
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            subscriptionStatus: "active", // Keep active until period end
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: "Subscription will be cancelled at the end of the current billing period.",
+          cancelAt: new Date(subscription.current_period_end * 1000).toISOString(),
+        })
+      } catch (error) {
+        console.error("Error cancelling subscription:", error)
+        return NextResponse.json({ error: "Failed to cancel subscription" }, { status: 500 })
+      }
+    } else {
+      // User is already on free plan or has no subscription
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          subscriptionPlan: "free",
+          subscriptionStatus: "inactive",
+          stripeSubscriptionId: null,
+          subscriptionCurrentPeriodEnd: null,
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: "You are now on the free plan.",
+      })
     }
-
-    // Cancel the Stripe subscription at period end
-    await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    })
-
-    // Update user subscription status to indicate cancellation
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { 
-        subscriptionStatus: "canceled",
-      },
-    })
-
-    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error cancelling subscription:", error)
+    console.error("Error in cancel endpoint:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
+}
+
+// Handle GET requests by redirecting to POST (for link clicks)
+export async function GET() {
+  return POST()
 }

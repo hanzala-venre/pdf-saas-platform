@@ -12,7 +12,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { useSubscription } from "@/hooks/use-subscription"
-import { useOneTimePayment } from "@/hooks/use-one-time-payment"
+import { usePDFToolAccess } from "@/hooks/use-pdf-tool-access"
 import { WatermarkNotice, SubscriptionStatus, OneTimeAccessStatus } from "@/components/watermark-notice"
 import { usePDFStorage, PDFStorageUtils } from "@/hooks/use-pdf-storage"
 import { Badge } from "@/components/ui/badge"
@@ -72,12 +72,14 @@ export default function CompressPDFPage() {
   const { toast } = useToast()
   const { trackPDFOperation } = useAnalytics()
   const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { hasOneTimeAccess } = useOneTimePayment()
-
-  const isPaidUser = subscription?.isPaidUser || false
-  const hasWatermarkFreeAccess = isPaidUser || hasOneTimeAccess || false
-
-  // Use custom hooks for local storage
+  const toolAccess = usePDFToolAccess()
+  
+  const { 
+    hasOneTimeAccess, 
+    hasWatermarkFreeAccess, 
+    creditsRemaining, 
+    apiClient 
+  } = toolAccess  // Use custom hooks for local storage
   const [compressionQuality, setCompressionQuality] = usePDFStorage(STORAGE_KEYS.COMPRESSION_QUALITY, "medium")
   const [compressionResult, setCompressionResult] = usePDFStorage(STORAGE_KEYS.COMPRESSION_RESULT, null)
 
@@ -167,18 +169,8 @@ export default function CompressPDFPage() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("quality", compressionQuality)
-      formData.append('hasWatermarkFreeAccess', hasWatermarkFreeAccess.toString())
 
-      const headers: HeadersInit = {}
-      if (hasOneTimeAccess) {
-        headers['x-one-time-access'] = 'true'
-      }
-
-      const response = await fetch("/api/pdf/compress", {
-        method: "POST",
-        headers,
-        body: formData,
-      })
+      const response = await apiClient.post("/api/pdf/compress", formData)
 
       clearInterval(progressInterval)
       setProgress(100)

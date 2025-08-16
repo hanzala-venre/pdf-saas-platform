@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { checkWatermarkFreeAccess } from "@/lib/watermark-utils"
 
 // FastAPI backend URL
-const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "http://127.0.0.1:8001"
+const FASTAPI_BASE_URL = (process.env.FASTAPI_BASE_URL || "http://127.0.0.1:8001").replace(/\/+$/, "")
 
 export async function POST(request: NextRequest) {
   try {

@@ -107,6 +107,15 @@ model UsageStats {
   @@map("usage_stats")
 }
 
+model ConsumedOneTimePayment {
+  id            String        @id @default(cuid())
+  purchaseId    String        @unique
+  operationType OperationType
+  consumedAt    DateTime      @default(now())
+
+  @@map("consumed_one_time_payments")
+}
+
 enum Role {
   USER
   ADMIN

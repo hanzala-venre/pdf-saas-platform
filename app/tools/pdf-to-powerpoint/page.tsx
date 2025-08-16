@@ -12,7 +12,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { useSubscription } from "@/hooks/use-subscription"
-import { useOneTimePayment } from "@/hooks/use-one-time-payment"
+import { usePDFToolAccess } from "@/hooks/use-pdf-tool-access"
 import { WatermarkNotice, SubscriptionStatus, OneTimeAccessStatus } from "@/components/watermark-notice"
 import { usePDFStorage, PDFStorageUtils } from "@/hooks/use-pdf-storage"
 
@@ -34,10 +34,14 @@ export default function PDFToPowerPointPage() {
   const { toast } = useToast()
   const { trackPDFOperation } = useAnalytics()
   const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { hasOneTimeAccess } = useOneTimePayment()
-
-  const isPaidUser = subscription?.isPaidUser || false
-  const hasWatermarkFreeAccess = isPaidUser || hasOneTimeAccess || false
+  const toolAccess = usePDFToolAccess()
+  
+  const { 
+    hasOneTimeAccess, 
+    hasWatermarkFreeAccess, 
+    creditsRemaining, 
+    apiClient 
+  } = toolAccess
 
   // Use custom hooks for local storage
   const [conversionMode, setConversionMode] = usePDFStorage(STORAGE_KEYS.CONVERSION_MODE, "one-per-slide")
@@ -132,38 +136,13 @@ export default function PDFToPowerPointPage() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("conversionMode", conversionMode)
-      formData.append('hasWatermarkFreeAccess', hasWatermarkFreeAccess.toString())
-
-      const headers: HeadersInit = {}
-      if (hasOneTimeAccess) {
-        headers['x-one-time-access'] = 'true'
-      }
-
-      const response = await fetch("/api/pdf/pdf-to-powerpoint", {
-        method: "POST",
-        headers,
-        body: formData,
-      })
+      const response = await apiClient.post("/api/pdf/pdf-to-powerpoint", formData)
 
       clearInterval(progressInterval)
       setProgress(100)
 
       if (!response.ok) {
         const errorData = await response.json()
-        
-        // Check if it's a maintenance mode error
-        if (errorData.maintenance) {
-          toast({
-            title: "Service Temporarily Unavailable",
-            description: errorData.error || "PDF to PowerPoint conversion is currently undergoing maintenance.",
-            variant: "destructive",
-          })
-          
-          // Show maintenance info
-          setDownloadUrl(null)
-          return
-        }
-        
         throw new Error(errorData.error || "Failed to convert PDF to PowerPoint")
       }
 
@@ -233,30 +212,6 @@ export default function PDFToPowerPointPage() {
           </h1>
           <p className="text-gray-600 mt-1">Convert your PDF documents to PowerPoint (.pptx) presentations</p>
         </div>
-
-        {/* Service Status Notice */}
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-800 flex items-center gap-2">
-              <RefreshCw className="h-5 w-5" />
-              Service Notice
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yellow-700 mb-3">
-              PDF to PowerPoint conversion is currently experiencing issues. Our conversion service may be temporarily unavailable.
-            </p>
-            <div className="text-sm text-yellow-600 space-y-1">
-              <p><strong>Alternative solutions:</strong></p>
-              <ul className="list-disc list-inside ml-4 space-y-1">
-                <li>Use desktop software like LibreOffice (File → Export as PowerPoint)</li>
-                <li>Try online converters like SmallPDF or ILovePDF</li>
-                <li>Use Adobe Acrobat Pro's export feature</li>
-              </ul>
-              <p className="mt-2">We're working to restore full functionality. Thank you for your patience!</p>
-            </div>
-          </CardContent>
-        </Card>
 
         <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
 

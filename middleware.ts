@@ -7,6 +7,11 @@ export default withAuth(
     const { pathname } = request.nextUrl
     const token = request.nextauth.token
 
+    // Redirect authenticated users away from auth pages
+    if (token && (pathname.startsWith("/auth/signin") || pathname.startsWith("/auth/signup"))) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+
     // Admin routes require ADMIN role
     if (pathname.startsWith("/admin")) {
       if (!token || token.role !== "ADMIN") {
@@ -20,21 +25,28 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
+        const { pathname } = req.nextUrl
+        
+        // Allow auth pages for non-authenticated users
+        if (pathname.startsWith("/auth/")) {
+          return true
+        }
+        
         // Admin routes need special handling
-        if (req.nextUrl.pathname.startsWith("/admin")) {
+        if (pathname.startsWith("/admin")) {
           return !!token && token.role === "ADMIN"
         }
         
         // Allow access to tools for everyone (logged in or not)
-        if (req.nextUrl.pathname.startsWith("/tools")) {
+        if (pathname.startsWith("/tools")) {
           return true
         }
         
         // Require authentication for dashboard, settings, and billing
         if (
-          req.nextUrl.pathname.startsWith("/dashboard") ||
-          req.nextUrl.pathname.startsWith("/settings") ||
-          req.nextUrl.pathname.startsWith("/billing")
+          pathname.startsWith("/dashboard") ||
+          pathname.startsWith("/settings") ||
+          pathname.startsWith("/billing")
         ) {
           return !!token
         }
@@ -46,5 +58,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/tools/:path*", "/settings/:path*", "/billing/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/tools/:path*", "/settings/:path*", "/billing/:path*", "/admin/:path*", "/auth/:path*"],
 }

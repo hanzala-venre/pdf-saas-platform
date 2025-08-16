@@ -199,6 +199,17 @@ export async function POST(req: NextRequest) {
               const amount = invoice.amount_paid || 0
               const currency = invoice.currency || "usd"
               
+              console.log(`📧 Sending recurring payment emails to user: ${user.email}`)
+              console.log(`📋 Recurring payment email data:`, {
+                userName: user.name || customer.name || "User",
+                userEmail: user.email,
+                planName: planName.toUpperCase(),
+                amount: amount,
+                currency: currency,
+                transactionId: invoice.payment_intent as string || invoice.id,
+                billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
+              })
+              
               await emailService.sendPaymentEmails({
                 userName: user.name || customer.name || "User",
                 userEmail: user.email,
@@ -208,8 +219,11 @@ export async function POST(req: NextRequest) {
                 transactionId: invoice.payment_intent as string || invoice.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
+              
+              console.log(`✅ Recurring payment emails sent successfully to: ${user.email}`)
             } catch (emailError) {
-              console.error("Failed to send payment confirmation emails:", emailError)
+              console.error("❌ Failed to send payment confirmation emails:", emailError)
+              console.error("📧 Recurring payment email error details:", emailError)
             }
           }
         }
@@ -280,6 +294,17 @@ export async function POST(req: NextRequest) {
               const amount = session.amount_total || 0
               const currency = session.currency || "usd"
               
+              console.log(`📧 Sending payment confirmation emails to user: ${user.email}`)
+              console.log(`📋 Email data:`, {
+                userName: user.name || customer.name || "User",
+                userEmail: user.email,
+                planName: newPlan.toUpperCase(),
+                amount: amount,
+                currency: currency,
+                transactionId: session.payment_intent as string || session.id,
+                billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
+              })
+              
               await emailService.sendPaymentEmails({
                 userName: user.name || customer.name || "User",
                 userEmail: user.email,
@@ -289,8 +314,11 @@ export async function POST(req: NextRequest) {
                 transactionId: session.payment_intent as string || session.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
+              
+              console.log(`✅ Payment emails sent successfully to: ${user.email}`)
             } catch (emailError) {
-              console.error("Failed to send checkout completion emails:", emailError)
+              console.error("❌ Failed to send checkout completion emails:", emailError)
+              console.error("📧 Email error details:", emailError)
             }
 
             console.log(`Checkout completed for user ${user.email}`)

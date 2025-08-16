@@ -10,7 +10,7 @@ interface WatermarkNoticeProps {
 }
 
 export function WatermarkNotice({ isPaidUser, className = "" }: WatermarkNoticeProps) {
-  const { hasOneTimeAccess, getTimeRemainingFormatted } = useOneTimePayment()
+  const { hasOneTimeAccess, creditsRemaining } = useOneTimePayment()
   const pathname = usePathname()
 
   if (isPaidUser || hasOneTimeAccess) {
@@ -29,12 +29,12 @@ export function WatermarkNotice({ isPaidUser, className = "" }: WatermarkNoticeP
           <div>
             <strong>Free Plan Notice:</strong> Generated PDFs will include a watermark at the bottom of each page.
             <br />
-            <span className="text-sm">Remove watermarks with a subscription or one-time payment.</span>
+            <span className="text-sm">Remove watermarks with a subscription or one-time payment (single use).</span>
           </div>
           <div className="ml-4 flex gap-2">
             <Button size="sm" variant="outline" onClick={handleOneTimePayment} className="border-amber-300 text-amber-700 hover:bg-amber-100">
               <Zap className="mr-2 h-4 w-4" />
-              Remove Now ($2.49)
+              Remove Once ($2.49)
             </Button>
             <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700">
               <a href="/pricing">
@@ -54,7 +54,7 @@ interface OneTimeAccessStatusProps {
 }
 
 export function OneTimeAccessStatus({ className = "" }: OneTimeAccessStatusProps) {
-  const { hasOneTimeAccess, getTimeRemainingFormatted } = useOneTimePayment()
+  const { hasOneTimeAccess, creditsRemaining } = useOneTimePayment()
 
   if (!hasOneTimeAccess) {
     return null
@@ -64,8 +64,8 @@ export function OneTimeAccessStatus({ className = "" }: OneTimeAccessStatusProps
     <Alert className={`border-green-200 bg-green-50 ${className}`}>
       <Clock className="h-4 w-4 text-green-600" />
       <AlertDescription className="text-green-800">
-        <strong>Watermark-Free Access Active:</strong> No watermarks will be added to your PDFs. 
-        <span className="font-medium"> Time remaining: {getTimeRemainingFormatted()}</span>
+        <strong>Watermark-Free Credit Active:</strong> You have one watermark-free processing available. 
+        <span className="font-medium"> This credit will be consumed after your next tool use.</span>
       </AlertDescription>
     </Alert>
   )

@@ -13,8 +13,8 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { useSubscription } from "@/hooks/use-subscription"
-import { useOneTimePayment } from "@/hooks/use-one-time-payment"
-import { WatermarkNotice, SubscriptionStatus } from "@/components/watermark-notice"
+import { usePDFToolAccess } from "@/hooks/use-pdf-tool-access"
+import { WatermarkNotice, SubscriptionStatus, OneTimeAccessStatus } from "@/components/watermark-notice"
 import { usePDFStorage, PDFStorageUtils } from "@/hooks/use-pdf-storage"
 
 type SplitMode = "pages" | "range" | "every"
@@ -44,7 +44,14 @@ export default function SplitPDFPage() {
   const { toast } = useToast()
   const { trackPDFOperation } = useAnalytics()
   const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { hasOneTimeAccess } = useOneTimePayment()
+  const toolAccess = usePDFToolAccess()
+  
+  const { 
+    hasOneTimeAccess, 
+    hasWatermarkFreeAccess, 
+    creditsRemaining, 
+    apiClient 
+  } = toolAccess
 
   // Use custom hooks for local storage
   const [splitMode, setSplitMode] = usePDFStorage(STORAGE_KEYS.SPLIT_MODE, "pages")
@@ -53,9 +60,6 @@ export default function SplitPDFPage() {
   const [rangeEnd, setRangeEnd] = usePDFStorage(STORAGE_KEYS.RANGE_END, "")
   const [everyN, setEveryN] = usePDFStorage(STORAGE_KEYS.EVERY_N, "1")
   const [splitFiles, setSplitFiles] = usePDFStorage(STORAGE_KEYS.SPLIT_FILES, [])
-  
-  const isPaidUser = subscription?.isPaidUser || false
-  const hasWatermarkFreeAccess = isPaidUser || hasOneTimeAccess || false
 
   // Create blob URLs for saved files on component mount
   useEffect(() => {
@@ -174,7 +178,6 @@ export default function SplitPDFPage() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("mode", splitMode)
-      formData.append('hasWatermarkFreeAccess', hasWatermarkFreeAccess.toString())
 
       if (splitMode === "pages") {
         formData.append("pages", pageNumbers)
@@ -185,13 +188,7 @@ export default function SplitPDFPage() {
         formData.append("every", everyN)
       }
 
-      const response = await fetch("/api/pdf/split", {
-        method: "POST",
-        body: formData,
-        headers: {
-          'x-one-time-access': hasOneTimeAccess.toString()
-        }
-      })
+      const response = await apiClient.post("/api/pdf/split", formData)
 
       clearInterval(progressInterval)
       setProgress(100)

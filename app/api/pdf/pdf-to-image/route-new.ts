@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { checkWatermarkFreeAccess } from "@/lib/watermark-utils"
 
 // FastAPI backend URL - Update this with your deployed FastAPI URL
-const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL || "https://your-fastapi-deployment.vercel.app"
+const FASTAPI_BASE_URL = (process.env.FASTAPI_BASE_URL || "https://your-fastapi-deployment.vercel.app").replace(/\/+$/, "")
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call FastAPI backend
-    const response = await fetch(`${FASTAPI_BASE_URL}/api/convert/pdf-to-images`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/api/convert/pdf-to-image`, {
       method: "POST",
       body: fastApiFormData,
     })

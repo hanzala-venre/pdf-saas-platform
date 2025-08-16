@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { signIn } from "next-auth/react"
-import { useState } from "react"
+import { signIn, useSession } from "next-auth/react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { FileText } from "lucide-react"
@@ -19,6 +19,14 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+  const { data: session, status } = useSession()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push("/dashboard")
+    }
+  }, [session, status, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +37,7 @@ export default function SignInPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/dashboard"
       })
 
       if (result?.error) {
@@ -37,12 +46,13 @@ export default function SignInPage() {
           description: "Invalid credentials. Please try again.",
           variant: "destructive",
         })
-      } else {
+      } else if (result?.ok) {
         toast({
           title: "Success",
-          description: "Welcome back!",
+          description: "Welcome back, you are logged in!",
         })
-        router.push("/dashboard")
+        // Use window.location.href for a hard redirect to ensure session is properly set
+        window.location.href = "/dashboard"
       }
     } catch (error) {
       toast({
@@ -53,6 +63,26 @@ export default function SignInPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading state while checking session
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  // Don't render the form if user is already authenticated (will redirect)
+  if (status === "authenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { FileText, Home, Settings, Users, Activity, TrendingUp, Menu, X, Shield, CreditCard, RefreshCw, Mail } from "lucide-react"
+import { FileText, Home, Settings, Users, Activity, TrendingUp, Menu, X, Shield, CreditCard, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
@@ -24,7 +24,6 @@ const navigation = [
   { name: "Subscriptions", href: "/admin/subscriptions", icon: RefreshCw },
   { name: "Operations", href: "/admin/operations", icon: Activity },
   { name: "Analytics", href: "/admin/analytics", icon: TrendingUp },
-  { name: "Email System", href: "/admin/email", icon: Mail },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ]
 

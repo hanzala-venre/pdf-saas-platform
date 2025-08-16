@@ -10,6 +10,7 @@ export interface WatermarkFreeStatus {
   hasOneTimeAccess: boolean
   accessType: 'subscription' | 'oneTime' | 'free'
   userId?: string
+  shouldConsumeCredit?: boolean
 }
 
 /**
@@ -21,14 +22,30 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
   
   // Check for one-time access from request headers (set by frontend)
   const oneTimeAccess = request.headers.get('x-one-time-access') === 'true'
+  const purchaseId = request.headers.get('x-purchase-id') || request.cookies.get('one-time-purchase-id')?.value
+
+  // If claiming one-time access, verify the purchase ID hasn't been consumed
+  let validOneTimeAccess = false
+  if (oneTimeAccess && purchaseId) {
+    try {
+      const consumedPayment = await (prisma as any).consumedOneTimePayment?.findUnique({
+        where: { purchaseId }
+      })
+      validOneTimeAccess = !consumedPayment // Valid if not already consumed
+    } catch (error) {
+      console.error('Error checking consumed one-time payment:', error)
+      validOneTimeAccess = oneTimeAccess // Fall back to original check if database unavailable
+    }
+  }
   
   if (!session?.user?.email) {
     // Guest user - only check one-time access
     return {
-      hasWatermarkFreeAccess: oneTimeAccess,
+      hasWatermarkFreeAccess: validOneTimeAccess,
       isPaidUser: false,
-      hasOneTimeAccess: oneTimeAccess,
-      accessType: oneTimeAccess ? 'oneTime' : 'free'
+      hasOneTimeAccess: validOneTimeAccess,
+      accessType: validOneTimeAccess ? 'oneTime' : 'free',
+      shouldConsumeCredit: validOneTimeAccess
     }
   }
 
@@ -46,10 +63,11 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
 
     if (!user) {
       return {
-        hasWatermarkFreeAccess: oneTimeAccess,
+        hasWatermarkFreeAccess: validOneTimeAccess,
         isPaidUser: false,
-        hasOneTimeAccess: oneTimeAccess,
-        accessType: oneTimeAccess ? 'oneTime' : 'free'
+        hasOneTimeAccess: validOneTimeAccess,
+        accessType: validOneTimeAccess ? 'oneTime' : 'free',
+        shouldConsumeCredit: validOneTimeAccess
       }
     }
 
@@ -66,7 +84,7 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
     if (isPaidUser) {
       hasWatermarkFreeAccess = true
       accessType = 'subscription'
-    } else if (oneTimeAccess) {
+    } else if (validOneTimeAccess) {
       hasWatermarkFreeAccess = true
       accessType = 'oneTime'
     }
@@ -74,17 +92,19 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
     return {
       hasWatermarkFreeAccess,
       isPaidUser,
-      hasOneTimeAccess: oneTimeAccess,
+      hasOneTimeAccess: validOneTimeAccess,
       accessType,
-      userId: user.id
+      userId: user.id,
+      shouldConsumeCredit: validOneTimeAccess && !isPaidUser
     }
   } catch (error) {
     console.error('Error checking watermark-free access:', error)
     return {
-      hasWatermarkFreeAccess: oneTimeAccess,
+      hasWatermarkFreeAccess: validOneTimeAccess,
       isPaidUser: false,
-      hasOneTimeAccess: oneTimeAccess,
-      accessType: oneTimeAccess ? 'oneTime' : 'free'
+      hasOneTimeAccess: validOneTimeAccess,
+      accessType: validOneTimeAccess ? 'oneTime' : 'free',
+      shouldConsumeCredit: validOneTimeAccess
     }
   }
 }

@@ -44,11 +44,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
+    async jwt({ token, user, trigger, session }: { token: any; user?: any; trigger?: string; session?: any }) {
       if (user) {
         token.subscription = user.subscription || "free"
         token.role = user.role || "USER"
+        token.image = user.image
       }
+
+      // Handle session updates (when user updates their profile)
+      if (trigger === "update" && session) {
+        if (session.image !== undefined) {
+          token.image = session.image
+        }
+        if (session.name !== undefined) {
+          token.name = session.name
+        }
+        if (session.email !== undefined) {
+          token.email = session.email
+        }
+      }
+
       return token
     },
     async session({ session, token }: { session: any; token: any }) {
@@ -56,6 +71,9 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub || ""
         session.user.subscription = token.subscription as string
         session.user.role = token.role as string
+        session.user.image = token.image
+        session.user.name = token.name
+        session.user.email = token.email
       }
       return session
     },

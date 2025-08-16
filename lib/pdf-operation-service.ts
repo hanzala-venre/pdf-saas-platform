@@ -41,8 +41,6 @@ export class PDFOperationService {
       const accessStatus = await checkWatermarkFreeAccess(this.request)
       const session = await getServerSession(authOptions) as Session | null
 
-      // No usage limits - only watermark is the restriction
-
       // Extract and validate files (this also extracts the formData)
       const extractResult = await this.extractFilesAndFormData()
       if (!extractResult.success) {
@@ -51,6 +49,13 @@ export class PDFOperationService {
 
       // Process the PDF operation
       const result = await processFunction(extractResult.files!, accessStatus, extractResult.formData!)
+
+      // If the operation was successful and we used one-time access, consume the credit immediately
+      if (result.ok && accessStatus.shouldConsumeCredit) {
+        await this.consumeOneTimeCredit()
+        // Add a header to signal the frontend that credit was consumed
+        result.headers.set('X-One-Time-Credit-Consumed', 'true')
+      }
 
       // Log the operation (only for logged-in users)
       if (session?.user?.email && accessStatus.userId) {
@@ -146,6 +151,38 @@ export class PDFOperationService {
         color: rgb(0.6, 0.6, 0.6),
         opacity: 0.8,
       })
+    }
+  }
+
+  /**
+   * Consume one-time credit on the server side by invalidating the purchase ID
+   */
+  private async consumeOneTimeCredit(): Promise<void> {
+    try {
+      // Get the purchase ID from request headers or cookies
+      const purchaseId = this.request.headers.get('x-purchase-id') || 
+                        this.request.cookies.get('one-time-purchase-id')?.value
+
+      if (purchaseId) {
+        // Store consumed purchase ID in database to prevent reuse
+        try {
+          await (prisma as any).consumedOneTimePayment.create({
+            data: {
+              purchaseId,
+              consumedAt: new Date(),
+              operationType: this.config.operationType
+            }
+          })
+        } catch (error: any) {
+          // If it already exists (duplicate), that's fine - it means it was already consumed
+          if (!error.message?.includes('Unique constraint') && !error.message?.includes('unique constraint')) {
+            throw error
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error consuming one-time credit:', error)
+      // Don't throw - this shouldn't break the main operation
     }
   }
 

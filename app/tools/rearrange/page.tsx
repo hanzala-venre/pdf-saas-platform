@@ -10,7 +10,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { useToast } from "@/hooks/use-toast"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { useSubscription } from "@/hooks/use-subscription"
-import { useOneTimePayment } from "@/hooks/use-one-time-payment"
+import { usePDFToolAccess } from "@/hooks/use-pdf-tool-access"
 import { WatermarkNotice, SubscriptionStatus, OneTimeAccessStatus } from "@/components/watermark-notice"
 import { usePDFStorage, PDFStorageUtils } from "@/hooks/use-pdf-storage"
 
@@ -37,10 +37,14 @@ export default function RearrangePDFPage() {
   const { toast } = useToast()
   const { trackPDFOperation } = useAnalytics()
   const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { hasOneTimeAccess } = useOneTimePayment()
-
-  const isPaidUser = subscription?.isPaidUser || false
-  const hasWatermarkFreeAccess = isPaidUser || hasOneTimeAccess || false
+  const toolAccess = usePDFToolAccess()
+  
+  const { 
+    hasOneTimeAccess, 
+    hasWatermarkFreeAccess, 
+    creditsRemaining, 
+    apiClient 
+  } = toolAccess
 
   // Use custom hooks for local storage
   const [, , clearPageOrder] = usePDFStorage(STORAGE_KEYS.PAGE_ORDER, null)
@@ -203,18 +207,7 @@ export default function RearrangePDFPage() {
       const formData = new FormData()
       formData.append("file", file)
       formData.append("pageOrder", JSON.stringify(pages.map(p => p.pageNumber)))
-      formData.append('hasWatermarkFreeAccess', hasWatermarkFreeAccess.toString())
-
-      const headers: HeadersInit = {}
-      if (hasOneTimeAccess) {
-        headers['x-one-time-access'] = 'true'
-      }
-
-      const response = await fetch("/api/pdf/rearrange", {
-        method: "POST",
-        headers,
-        body: formData,
-      })
+      const response = await apiClient.post("/api/pdf/rearrange", formData)
 
       clearInterval(progressInterval)
       setProgress(100)

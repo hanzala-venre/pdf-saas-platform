@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useSession } from "next-auth/react"
 import { redirect } from "next/navigation"
@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, Lock, Trash2, Download } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { AvatarUpload } from "@/components/avatar-upload"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,25 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(session?.user?.image || "")
   const { toast } = useToast()
+
+  // Update local state when session changes
+  React.useEffect(() => {
+    if (session?.user) {
+      setName(session.user.name || "")
+      setEmail(session.user.email || "")
+      setAvatarUrl(session.user.image || "")
+    }
+  }, [session])
+
+  const handleAvatarUpdate = async (newAvatarUrl: string | null) => {
+    setAvatarUrl(newAvatarUrl || "")
+    // Update session immediately
+    await update({
+      image: newAvatarUrl
+    })
+  }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -194,21 +212,12 @@ export default function SettingsPage() {
             <CardDescription>Update your personal information and profile details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center gap-6">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={session.user?.image || ""} />
-                <AvatarFallback className="text-lg">
-                  {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h3 className="font-medium">{session.user?.name || "Anonymous User"}</h3>
-                <p className="text-sm text-gray-600">{session.user?.email}</p>
-                <Button variant="outline" size="sm" className="mt-2 bg-transparent">
-                  Change Avatar
-                </Button>
-              </div>
-            </div>
+            <AvatarUpload
+              currentImage={avatarUrl}
+              userName={session.user?.name || ""}
+              userEmail={session.user?.email || ""}
+              onAvatarUpdate={handleAvatarUpdate}
+            />
 
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

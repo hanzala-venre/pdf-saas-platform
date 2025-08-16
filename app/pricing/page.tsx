@@ -8,18 +8,57 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { useSession } from "next-auth/react"
 import { useAnalytics } from "@/hooks/use-analytics"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+
+interface SubscriptionInfo {
+  plan: string
+  status: string
+  currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+}
 
 export default function PricingPage() {
   const { data: session } = useSession()
   const { trackPageView, trackSubscriptionEvent } = useAnalytics()
+  const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     trackPageView("pricing")
-  }, [trackPageView])
+    if (session?.user) {
+      fetchSubscriptionInfo()
+    }
+  }, [trackPageView, session])
+
+  const fetchSubscriptionInfo = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch("/api/billing/subscription")
+      if (response.ok) {
+        const data = await response.json()
+        setSubscriptionInfo(data)
+      }
+    } catch (error) {
+      console.error("Error fetching subscription info:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handlePlanClick = (plan: string) => {
     trackSubscriptionEvent("plan_click", plan)
+  }
+
+  const isCurrentPlan = (plan: string) => {
+    if (!subscriptionInfo) return false
+    return subscriptionInfo.plan === plan && subscriptionInfo.status === "active"
+  }
+
+  const getPlanStatus = (plan: string) => {
+    if (isCurrentPlan(plan)) {
+      return subscriptionInfo?.cancelAtPeriodEnd ? "Cancelling" : "Current Plan"
+    }
+    return null
   }
 
   return (
@@ -44,11 +83,16 @@ export default function PricingPage() {
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {/* Free Plan */}
-            <Card className="relative">
+            <Card className={`relative ${isCurrentPlan("free") ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">Free</CardTitle>
-                  <Star className="h-5 w-5 text-gray-400" />
+                  <div className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-gray-400" />
+                    {isCurrentPlan("free") && (
+                      <Badge className="bg-blue-100 text-blue-800">Current Plan</Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-4">
                   <span className="text-3xl font-bold">$0</span>
@@ -136,9 +180,15 @@ export default function PricingPage() {
             </Card>
 
             {/* Monthly Plan */}
-            <Card className="relative border-2 border-purple-200 shadow-lg">
+            <Card className={`relative border-2 shadow-lg ${isCurrentPlan("monthly") ? "ring-2 ring-purple-500 ring-offset-2" : "border-purple-200"}`}>
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-purple-600 text-white">Most Popular</Badge>
+                {isCurrentPlan("monthly") ? (
+                  <Badge className="bg-green-600 text-white">
+                    {getPlanStatus("monthly")}
+                  </Badge>
+                ) : (
+                  <Badge className="bg-purple-600 text-white">Most Popular</Badge>
+                )}
               </div>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -182,18 +232,31 @@ export default function PricingPage() {
                   className="w-full bg-purple-600 hover:bg-purple-700"
                   asChild
                   onClick={() => handlePlanClick("monthly")}
+                  disabled={isCurrentPlan("monthly")}
                 >
-                  <a href="/api/stripe/checkout?plan=monthly">Upgrade to Monthly</a>
+                  {isCurrentPlan("monthly") ? (
+                    <span>Current Plan</span>
+                  ) : (
+                    <a href={session ? "/api/stripe/checkout?plan=monthly" : "/auth/signup?plan=monthly"}>
+                      Upgrade to Monthly
+                    </a>
+                  )}
                 </Button>
               </CardContent>
             </Card>
 
             {/* Yearly Plan */}
-            <Card className="relative">
+            <Card className={`relative ${isCurrentPlan("yearly") ? "ring-2 ring-green-500 ring-offset-2 border-green-200" : ""}`}>
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Save $4/year
-                </Badge>
+                {isCurrentPlan("yearly") ? (
+                  <Badge className="bg-green-600 text-white">
+                    {getPlanStatus("yearly")}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    Save $4/year
+                  </Badge>
+                )}
               </div>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -237,8 +300,15 @@ export default function PricingPage() {
                   className="w-full bg-green-600 hover:bg-green-700"
                   asChild
                   onClick={() => handlePlanClick("yearly")}
+                  disabled={isCurrentPlan("yearly")}
                 >
-                  <a href="/api/stripe/checkout?plan=yearly">Upgrade to Yearly</a>
+                  {isCurrentPlan("yearly") ? (
+                    <span>Current Plan</span>
+                  ) : (
+                    <a href={session ? "/api/stripe/checkout?plan=yearly" : "/auth/signup?plan=yearly"}>
+                      Upgrade to Yearly
+                    </a>
+                  )}
                 </Button>
               </CardContent>
             </Card>

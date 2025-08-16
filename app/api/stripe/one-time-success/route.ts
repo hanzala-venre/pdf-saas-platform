@@ -80,8 +80,8 @@ export async function GET(req: NextRequest) {
             <div class="success-icon">✓</div>
             <h1 class="title">Payment Successful!</h1>
             <p class="message">
-              Your watermark removal access has been activated for the next 24 hours.
-              You can now use all PDF tools without watermarks.
+              Your watermark removal credit has been activated.
+              You can now use any PDF tool once without watermarks.
             </p>
             <p class="redirect-message">
               <span class="spinner"></span>
@@ -94,7 +94,8 @@ export async function GET(req: NextRequest) {
             const oneTimeData = {
               oneTimePaid: true,
               timestamp: Date.now(),
-              expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+              creditsRemaining: 1,
+              purchaseId: 'purchase_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
             };
             
             localStorage.setItem('oneTimeWatermarkRemoval', JSON.stringify(oneTimeData));

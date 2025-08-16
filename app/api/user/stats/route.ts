@@ -18,6 +18,8 @@ export async function GET() {
         subscriptionPlan: true,
         subscriptionStatus: true,
         subscriptionCurrentPeriodEnd: true,
+        stripeCustomerId: true,
+        stripeSubscriptionId: true,
       },
     })
 
@@ -67,6 +69,8 @@ export async function GET() {
       recentOperations,
       subscription: effectivePlan,
       subscriptionStatus: user.subscriptionStatus,
+      currentPeriodEnd: user.subscriptionCurrentPeriodEnd?.toISOString() || null,
+      hasStripeSubscription: !!user.stripeSubscriptionId,
     })
   } catch (error) {
     console.error("Error fetching user stats:", error)

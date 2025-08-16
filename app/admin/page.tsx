@@ -1,19 +1,18 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Users, FileText, TrendingUp, DollarSign, Activity, RefreshCw, ShieldCheck } from "lucide-react"
 import { AdminLayout } from "@/components/admin-layout"
+import { AdminGuard, AdminBadge } from "@/components/admin-guard"
 import { useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import type { AdminStats, RecentUser, RecentOperation } from "@/types/admin"
-import type { Session } from "next-auth"
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([])
   const [recentOperations, setRecentOperations] = useState<RecentOperation[]>([])
@@ -21,19 +20,12 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const { toast } = useToast()
 
-  // Type-safe session casting
-  const adminSession = session as Session | null
-
   useEffect(() => {
-    console.log("🔍 Admin dashboard useEffect - session:", adminSession?.user)
-    if (adminSession?.user?.role === "ADMIN") {
-      console.log("✅ User is admin, fetching data...")
+    if (session?.user) {
+      console.log("✅ User session found, fetching data...")
       fetchDashboardData()
-    } else {
-      console.log("❌ User is not admin:", adminSession?.user?.role)
-      setLoading(false)
     }
-  }, [adminSession])
+  }, [session])
 
   const fetchDashboardData = async () => {
     console.log("🔍 Starting to fetch dashboard data...")
@@ -87,70 +79,60 @@ export default function AdminDashboard() {
     }
   }
 
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  if (!adminSession || adminSession.user?.role !== "ADMIN") {
-    console.log("🚫 Redirecting non-admin user to dashboard")
-    redirect("/dashboard")
-  }
-
   if (loading) {
     return (
-      <AdminLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+      <AdminGuard>
+        <AdminLayout>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+            </div>
           </div>
-        </div>
-      </AdminLayout>
+        </AdminLayout>
+      </AdminGuard>
     )
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <ShieldCheck className="h-8 w-8 text-red-600" />
-              Admin Dashboard
-            </h1>
-            <p className="text-gray-600 mt-1">Platform monitoring and management</p>
-          </div>
-          <Button 
-            onClick={fetchDashboardData} 
-            disabled={refreshing}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-
-        {/* Debug Info */}
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-800">Debug Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm space-y-1">
-              <p><strong>User:</strong> {adminSession?.user?.email}</p>
-              <p><strong>Role:</strong> {adminSession?.user?.role}</p>
-              <p><strong>Session Status:</strong> {status}</p>
-              <p><strong>Stats Loaded:</strong> {stats ? "✅ Yes" : "❌ No"}</p>
-              <p><strong>Users Count:</strong> {recentUsers.length}</p>
-              <p><strong>Operations Count:</strong> {recentOperations.length}</p>
+    <AdminGuard>
+      <AdminLayout>
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <ShieldCheck className="h-8 w-8 text-red-600" />
+                Admin Dashboard
+                <AdminBadge />
+              </h1>
+              <p className="text-gray-600 mt-1">Platform monitoring and management</p>
             </div>
-          </CardContent>
-        </Card>
+            <Button 
+              onClick={fetchDashboardData} 
+              disabled={refreshing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {/* Debug Info */}
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardHeader>
+              <CardTitle className="text-yellow-800">Debug Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm space-y-1">
+                <p><strong>User:</strong> {session?.user?.email}</p>
+                <p><strong>Role:</strong> {(session as any)?.user?.role}</p>
+                <p><strong>Stats Loaded:</strong> {stats ? "✅ Yes" : "❌ No"}</p>
+                <p><strong>Users Count:</strong> {recentUsers.length}</p>
+                <p><strong>Operations Count:</strong> {recentOperations.length}</p>
+              </div>
+            </CardContent>
+          </Card>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -325,5 +307,6 @@ export default function AdminDashboard() {
         </Card>
       </div>
     </AdminLayout>
+    </AdminGuard>
   )
 }

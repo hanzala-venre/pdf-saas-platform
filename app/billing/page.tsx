@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useAnalytics } from "@/hooks/use-analytics"
+import { PlanComparison } from "@/components/plan-comparison"
 
 interface SubscriptionData {
   plan: string
@@ -461,6 +462,21 @@ export default function BillingPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Plan Comparison */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Plans</CardTitle>
+            <CardDescription>Compare plans and upgrade or change your subscription</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PlanComparison 
+              currentPlan={subscription?.plan || "free"} 
+              currentStatus={subscription?.status || "inactive"}
+              showUpgradeOptions={true}
+            />
           </CardContent>
         </Card>
 

@@ -1,5 +1,6 @@
 import { useSubscription } from "./use-subscription"
 import { useOneTimePayment } from "./use-one-time-payment"
+import { PDFToolAPI } from "@/lib/pdf-tool-access"
 
 export interface PDFToolAccess {
   subscription: any
@@ -7,6 +8,10 @@ export interface PDFToolAccess {
   hasOneTimeAccess: boolean
   hasWatermarkFreeAccess: boolean
   accessType: 'subscription' | 'oneTime' | 'free'
+  creditsRemaining: number
+  apiClient: PDFToolAPI
+  consumeCredit: () => boolean
+  purchaseId?: string
 }
 
 /**
@@ -14,7 +19,13 @@ export interface PDFToolAccess {
  */
 export function usePDFToolAccess(): PDFToolAccess {
   const { subscription, loading: subscriptionLoading } = useSubscription()
-  const { hasOneTimeAccess } = useOneTimePayment()
+  const { 
+    hasOneTimeAccess, 
+    creditsRemaining, 
+    consumeOneTimeCredit, 
+    getCreditsStatus,
+    markCreditAsConsumed
+  } = useOneTimePayment()
 
   // Determine if user has watermark-free access
   const hasWatermarkFreeAccess = (subscription?.isPaidUser || hasOneTimeAccess) ?? false
@@ -27,12 +38,22 @@ export function usePDFToolAccess(): PDFToolAccess {
     accessType = 'oneTime'
   }
 
+  // Get purchase ID for one-time access
+  const { purchaseId } = getCreditsStatus()
+
+  // Create API client with automatic credit management
+  const apiClient = new PDFToolAPI(hasOneTimeAccess, purchaseId, markCreditAsConsumed)
+
   return {
     subscription,
     subscriptionLoading,
     hasOneTimeAccess,
     hasWatermarkFreeAccess,
-    accessType
+    accessType,
+    creditsRemaining,
+    apiClient,
+    consumeCredit: consumeOneTimeCredit,
+    purchaseId
   }
 }
 

@@ -3,14 +3,16 @@ import { useState, useEffect } from 'react'
 interface OneTimePaymentData {
   oneTimePaid: boolean
   timestamp: number
-  expiresAt: number
+  creditsRemaining: number
+  purchaseId: string // Unique ID for each purchase to prevent conflicts
 }
 
 const ONE_TIME_STORAGE_KEY = 'oneTimeWatermarkRemoval'
-const ONE_TIME_DURATION = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+const ONE_TIME_CREDITS = 1 // Single use only
 
 export function useOneTimePayment() {
   const [hasOneTimeAccess, setHasOneTimeAccess] = useState(false)
+  const [creditsRemaining, setCreditsRemaining] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
   // Check if user has valid one-time access
@@ -19,75 +21,120 @@ export function useOneTimePayment() {
       const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
       if (savedData) {
         const data: OneTimePaymentData = JSON.parse(savedData)
-        const now = Date.now()
         
-        // Check if the one-time access is still valid (within 24 hours)
-        if (data.oneTimePaid && now < data.expiresAt) {
+        // Check if the user has remaining credits
+        if (data.oneTimePaid && data.creditsRemaining > 0) {
           setHasOneTimeAccess(true)
+          setCreditsRemaining(data.creditsRemaining)
         } else {
-          // Remove expired access
+          // Remove used up credits
           localStorage.removeItem(ONE_TIME_STORAGE_KEY)
           setHasOneTimeAccess(false)
+          setCreditsRemaining(0)
         }
       }
     } catch (error) {
       console.error('Error loading one-time payment data:', error)
       localStorage.removeItem(ONE_TIME_STORAGE_KEY)
       setHasOneTimeAccess(false)
+      setCreditsRemaining(0)
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  const activateOneTimeAccess = () => {
+  const activateOneTimeAccess = (purchaseId?: string) => {
     const now = Date.now()
-    const expiresAt = now + ONE_TIME_DURATION
+    const id = purchaseId || `purchase_${now}_${Math.random().toString(36).substr(2, 9)}`
     
     const data: OneTimePaymentData = {
       oneTimePaid: true,
       timestamp: now,
-      expiresAt
+      creditsRemaining: ONE_TIME_CREDITS,
+      purchaseId: id
     }
     
     localStorage.setItem(ONE_TIME_STORAGE_KEY, JSON.stringify(data))
     setHasOneTimeAccess(true)
+    setCreditsRemaining(ONE_TIME_CREDITS)
+  }
+
+  const consumeOneTimeCredit = (): boolean => {
+    try {
+      const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
+      if (savedData) {
+        const data: OneTimePaymentData = JSON.parse(savedData)
+        
+        if (data.oneTimePaid && data.creditsRemaining > 0) {
+          // Consume one credit
+          const updatedData = {
+            ...data,
+            creditsRemaining: data.creditsRemaining - 1
+          }
+          
+          if (updatedData.creditsRemaining > 0) {
+            localStorage.setItem(ONE_TIME_STORAGE_KEY, JSON.stringify(updatedData))
+            setCreditsRemaining(updatedData.creditsRemaining)
+          } else {
+            // No credits left, remove access
+            localStorage.removeItem(ONE_TIME_STORAGE_KEY)
+            setHasOneTimeAccess(false)
+            setCreditsRemaining(0)
+          }
+          
+          return true
+        }
+      }
+    } catch (error) {
+      console.error('Error consuming one-time credit:', error)
+    }
+    return false
   }
 
   const clearOneTimeAccess = () => {
     localStorage.removeItem(ONE_TIME_STORAGE_KEY)
     setHasOneTimeAccess(false)
+    setCreditsRemaining(0)
   }
 
-  const getTimeRemaining = (): number => {
+  const getCreditsStatus = (): { hasCredits: boolean; remaining: number; purchaseId?: string } => {
     try {
       const savedData = localStorage.getItem(ONE_TIME_STORAGE_KEY)
       if (savedData) {
         const data: OneTimePaymentData = JSON.parse(savedData)
-        return Math.max(0, data.expiresAt - Date.now())
+        return {
+          hasCredits: data.creditsRemaining > 0,
+          remaining: data.creditsRemaining,
+          purchaseId: data.purchaseId
+        }
       }
     } catch (error) {
-      console.error('Error getting time remaining:', error)
+      console.error('Error getting credits status:', error)
     }
-    return 0
+    return {
+      hasCredits: false,
+      remaining: 0
+    }
   }
 
-  const getTimeRemainingFormatted = (): string => {
-    const remaining = getTimeRemaining()
-    const hours = Math.floor(remaining / (60 * 60 * 1000))
-    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000))
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
-    }
-    return `${minutes}m`
+  const markCreditAsConsumed = () => {
+    // This is called when server confirms credit consumption
+    localStorage.removeItem(ONE_TIME_STORAGE_KEY)
+    setHasOneTimeAccess(false)
+    setCreditsRemaining(0)
   }
 
   return {
     hasOneTimeAccess,
+    creditsRemaining,
     isLoading,
     activateOneTimeAccess,
+    consumeOneTimeCredit,
     clearOneTimeAccess,
-    getTimeRemaining,
-    getTimeRemainingFormatted
+    getCreditsStatus,
+    markCreditAsConsumed,
+    // Legacy methods for backward compatibility
+    getTimeRemaining: () => 0,
+    getTimeRemainingFormatted: () => creditsRemaining > 0 ? '1 use remaining' : 'No uses remaining'
   }
 }

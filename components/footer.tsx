@@ -12,11 +12,10 @@ export function Footer() {
               className="flex items-center gap-2 font-bold text-xl mb-4"
             >
               <Image
-                src="/quikpdfpro.png"
+                src="/logo.png"
                 alt="Logo"
-                width={32}
+                width={100}
                 height={32}
-                  className="h-8 w-8"
                 />
             </Link>
             <p className="text-gray-400 mb-4">
@@ -71,12 +70,6 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Company</h3>
             <div className="space-y-2 text-gray-400">
               <Link
-                href="/about"
-                className="block hover:text-white transition-colors"
-              >
-                About
-              </Link>
-              <Link
                 href="/pricing"
                 className="block hover:text-white transition-colors"
               >
@@ -123,7 +116,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-          <p>&copy; 2024 QuikPDF. All rights reserved.</p>
+          <p>&copy; 2025 QuikPDF. All rights reserved.</p>
         </div>
       </div>
     </footer>
