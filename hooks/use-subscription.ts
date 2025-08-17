@@ -8,6 +8,7 @@ export interface UserSubscription {
   cancelAtPeriodEnd: boolean
   isPaidUser: boolean
   isExpired: boolean
+  isAdmin: boolean
 }
 
 export function useSubscription() {
@@ -36,12 +37,13 @@ export function useSubscription() {
         const now = new Date()
         const isExpired = data.currentPeriodEnd && now > new Date(data.currentPeriodEnd)
         const effectivePlan = isExpired ? "free" : data.plan
-        const isPaidUser = effectivePlan === "monthly" || effectivePlan === "yearly"
+        const isPaidUser = effectivePlan === "monthly" || effectivePlan === "yearly" || data.isAdmin
         
         setSubscription({
           ...data,
           isPaidUser,
-          isExpired
+          isExpired: isExpired && !data.isAdmin, // Admins never expire
+          isAdmin: data.isAdmin || false
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch subscription")
@@ -52,7 +54,8 @@ export function useSubscription() {
           currentPeriodEnd: null,
           cancelAtPeriodEnd: false,
           isPaidUser: false,
-          isExpired: false
+          isExpired: false,
+          isAdmin: false
         })
       } finally {
         setLoading(false)

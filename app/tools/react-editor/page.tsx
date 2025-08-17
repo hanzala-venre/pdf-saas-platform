@@ -442,7 +442,7 @@ export default function ReactPDFEditor() {
           </p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Upload Section */}

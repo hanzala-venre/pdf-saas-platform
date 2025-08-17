@@ -21,6 +21,7 @@ export async function GET() {
       user = await prisma.user.findUnique({
         where: { email: session.user.email },
         select: {
+          role: true,
           subscriptionPlan: true,
           subscriptionStatus: true,
           subscriptionCurrentPeriodEnd: true,
@@ -38,6 +39,7 @@ export async function GET() {
         cancelAtPeriodEnd: false,
         stripeCustomerId: null,
         stripeSubscriptionId: null,
+        isAdmin: false,
       })
     }
 
@@ -50,6 +52,23 @@ export async function GET() {
         cancelAtPeriodEnd: false,
         stripeCustomerId: null,
         stripeSubscriptionId: null,
+        isAdmin: false,
+      })
+    }
+
+    // Check if user is admin - admins get unlimited pro access
+    const isAdmin = user.role === "ADMIN"
+    
+    // For admin users, always show pro plan with active status
+    if (isAdmin) {
+      return NextResponse.json({
+        plan: "pro", // Show pro plan for admins
+        status: "active",
+        currentPeriodEnd: null, // No expiration for admin
+        cancelAtPeriodEnd: false,
+        stripeCustomerId: user.stripeCustomerId,
+        stripeSubscriptionId: user.stripeSubscriptionId,
+        isAdmin: true,
       })
     }
 
@@ -84,6 +103,7 @@ export async function GET() {
       cancelAtPeriodEnd,
       stripeCustomerId: user.stripeCustomerId,
       stripeSubscriptionId: user.stripeSubscriptionId,
+      isAdmin,
     }
 
     return NextResponse.json(subscriptionData)

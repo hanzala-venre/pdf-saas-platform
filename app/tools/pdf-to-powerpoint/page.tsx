@@ -213,15 +213,12 @@ export default function PDFToPowerPointPage() {
           <p className="text-gray-600 mt-1">Convert your PDF documents to PowerPoint (.pptx) presentations</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
             <OneTimeAccessStatus />
           </>
         )}

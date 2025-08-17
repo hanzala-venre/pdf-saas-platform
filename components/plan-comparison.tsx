@@ -10,6 +10,7 @@ interface PlanComparisonProps {
   currentPlan?: string
   currentStatus?: string
   showUpgradeOptions?: boolean
+  isAdmin?: boolean
 }
 
 const plans = [
@@ -60,26 +61,54 @@ const plans = [
       "Batch processing",
       "Priority support"
     ]
+  },
+  {
+    id: "admin",
+    name: "Admin Pro",
+    price: "Unlimited",
+    period: "",
+    description: "Full admin access with unlimited features",
+    icon: Crown,
+    color: "blue",
+    badge: "Admin Only",
+    features: [
+      "Unlimited PDF operations",
+      "No watermarks",
+      "All file sizes supported",
+      "Admin panel access",
+      "Priority support",
+      "User management",
+      "Analytics access"
+    ]
   }
 ]
 
-export function PlanComparison({ currentPlan = "free", currentStatus = "inactive", showUpgradeOptions = true }: PlanComparisonProps) {
+export function PlanComparison({ currentPlan = "free", currentStatus = "inactive", showUpgradeOptions = true, isAdmin = false }: PlanComparisonProps) {
+  // Filter plans based on admin status
+  const visiblePlans = isAdmin ? plans : plans.filter(plan => plan.id !== "admin")
+  
   const isCurrentPlan = (planId: string) => {
+    if (isAdmin && (planId === "admin" || planId === "pro")) {
+      return true // Admin is always on pro/admin plan
+    }
     return currentPlan === planId && currentStatus === "active"
   }
 
   const getButtonText = (planId: string) => {
+    if (isAdmin && planId === "admin") {
+      return "Current Admin Plan"
+    }
     if (isCurrentPlan(planId)) {
       return "Current Plan"
     }
     if (planId === "free") {
       return "Downgrade to Free"
     }
-    return `Upgrade to ${plans.find(p => p.id === planId)?.name}`
+    return `Upgrade to ${visiblePlans.find(p => p.id === planId)?.name}`
   }
 
   const getButtonVariant = (planId: string) => {
-    if (isCurrentPlan(planId)) {
+    if (isCurrentPlan(planId) || (isAdmin && planId === "admin")) {
       return "secondary"
     }
     if (planId === "free") {
@@ -101,6 +130,10 @@ export function PlanComparison({ currentPlan = "free", currentStatus = "inactive
     
     if (color === "green") {
       return `${baseClass} border-green-200 hover:border-green-300`
+    }
+    
+    if (color === "blue") {
+      return `${baseClass} border-blue-200 hover:border-blue-300`
     }
     
     return baseClass
@@ -133,9 +166,10 @@ export function PlanComparison({ currentPlan = "free", currentStatus = "inactive
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {plans.map((plan) => {
+      {visiblePlans.map((plan) => {
         const Icon = plan.icon
         const isCurrent = isCurrentPlan(plan.id)
+        const isAdminPlan = plan.id === "admin"
         
         return (
           <Card key={plan.id} className={getCardClassName(plan.id, plan.color)}>
@@ -149,6 +183,8 @@ export function PlanComparison({ currentPlan = "free", currentStatus = "inactive
                     ? "bg-purple-600 text-white" 
                     : plan.color === "green"
                     ? "bg-green-600 text-white"
+                    : plan.color === "blue"
+                    ? "bg-blue-600 text-white"
                     : "bg-gray-600 text-white"
                 }>
                   {isCurrent 
@@ -165,6 +201,7 @@ export function PlanComparison({ currentPlan = "free", currentStatus = "inactive
                   <Icon className={`h-5 w-5 ${
                     plan.color === "purple" ? "text-purple-600" :
                     plan.color === "green" ? "text-green-600" :
+                    plan.color === "blue" ? "text-blue-600" :
                     "text-gray-600"
                   }`} />
                   {plan.name}
@@ -194,14 +231,16 @@ export function PlanComparison({ currentPlan = "free", currentStatus = "inactive
                       ? "bg-purple-600 hover:bg-purple-700" 
                       : plan.color === "green"
                       ? "bg-green-600 hover:bg-green-700"
+                      : plan.color === "blue"
+                      ? "bg-blue-600 hover:bg-blue-700"
                       : ""
                   }`}
                   variant={getButtonVariant(plan.id)}
-                  disabled={isCurrent}
-                  asChild={!isCurrent && plan.id !== "free"}
+                  disabled={isCurrent || isAdminPlan}
+                  asChild={!isCurrent && plan.id !== "free" && !isAdminPlan}
                   onClick={plan.id === "free" && !isCurrent ? () => handlePlanClick("free") : undefined}
                 >
-                  {isCurrent ? (
+                  {isCurrent || isAdminPlan ? (
                     <span>{getButtonText(plan.id)}</span>
                   ) : plan.id === "free" ? (
                     <span>{getButtonText(plan.id)}</span>

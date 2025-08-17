@@ -30,6 +30,7 @@ interface SubscriptionData {
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
   stripeCustomerId: string | null
+  isAdmin: boolean
 }
 
 interface UsageData {
@@ -170,6 +171,8 @@ export default function BillingPage() {
         return { name: "Monthly Pro", price: "$1.99/month", color: "purple" }
       case "yearly":
         return { name: "Yearly Pro", price: "$19.99/year", color: "green" }
+      case "pro":
+        return { name: "Admin Pro", price: "Unlimited", color: "blue" }
       default:
         return { name: "Free", price: "$0", color: "gray" }
     }
@@ -188,7 +191,7 @@ export default function BillingPage() {
   }
 
   const planDetails = getPlanDetails(subscription?.plan || "free")
-  const isPaid = subscription?.plan !== "free"
+  const isPaid = subscription?.plan !== "free" || subscription?.isAdmin
   const isActive = subscription?.status === "active"
 
   return (
@@ -213,7 +216,9 @@ export default function BillingPage() {
               <Badge
                 variant={isActive ? "default" : "secondary"}
                 className={`${
-                  planDetails.color === "purple" ? "bg-purple-600" : planDetails.color === "green" ? "bg-green-600" : ""
+                  planDetails.color === "purple" ? "bg-purple-600" : 
+                  planDetails.color === "green" ? "bg-green-600" : 
+                  planDetails.color === "blue" ? "bg-blue-600" : ""
                 }`}
               >
                 {planDetails.name}
@@ -464,6 +469,7 @@ export default function BillingPage() {
               currentPlan={subscription?.plan || "free"} 
               currentStatus={subscription?.status || "inactive"}
               showUpgradeOptions={true}
+              isAdmin={subscription?.isAdmin || false}
             />
           </CardContent>
         </Card>

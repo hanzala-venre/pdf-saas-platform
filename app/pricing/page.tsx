@@ -15,6 +15,7 @@ interface SubscriptionInfo {
   status: string
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
+  isAdmin: boolean
 }
 
 export default function PricingPage() {
@@ -44,7 +45,8 @@ export default function PricingPage() {
           plan: "free",
           status: "inactive",
           currentPeriodEnd: null,
-          cancelAtPeriodEnd: false
+          cancelAtPeriodEnd: false,
+          isAdmin: false
         })
       }
     } catch (error) {
@@ -54,7 +56,8 @@ export default function PricingPage() {
         plan: "free", 
         status: "inactive",
         currentPeriodEnd: null,
-        cancelAtPeriodEnd: false
+        cancelAtPeriodEnd: false,
+        isAdmin: false
       })
     } finally {
       setLoading(false)
@@ -67,10 +70,17 @@ export default function PricingPage() {
 
   const isCurrentPlan = (plan: string) => {
     if (!subscriptionInfo) return false
+    // For admin users, show pro plan as current
+    if (subscriptionInfo.isAdmin && (plan === "pro" || plan === "monthly" || plan === "yearly")) {
+      return true
+    }
     return subscriptionInfo.plan === plan && subscriptionInfo.status === "active"
   }
 
   const getPlanStatus = (plan: string) => {
+    if (subscriptionInfo?.isAdmin && (plan === "pro" || plan === "monthly" || plan === "yearly")) {
+      return "Admin Access"
+    }
     if (isCurrentPlan(plan)) {
       return subscriptionInfo?.cancelAtPeriodEnd ? "Cancelling" : "Current Plan"
     }
@@ -356,6 +366,39 @@ export default function PricingPage() {
                 <p className="text-gray-600">
                   Yes, we offer a 30-day money-back guarantee. If you're not satisfied, contact us for a full refund.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Legal Notice */}
+          <div className="mt-12 text-center">
+            <div className="max-w-2xl mx-auto p-6 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">
+                By subscribing to any paid plan, you agree to our subscription terms and billing policies.
+              </p>
+              <div className="flex justify-center">
+                <div className="flex flex-wrap justify-center gap-4 text-sm">
+                  <a 
+                    href="/legal/terms-of-use" 
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Terms of Use
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a 
+                    href="/legal/privacy-policy" 
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Privacy Policy
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a 
+                    href="/legal/subscription-agreement" 
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Subscription Agreement
+                  </a>
+                </div>
               </div>
             </div>
           </div>

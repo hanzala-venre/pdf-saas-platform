@@ -2,21 +2,32 @@ import { AlertTriangle, Crown, Info, Clock, Zap } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useOneTimePayment } from "@/hooks/use-one-time-payment"
+import { useSubscription } from "@/hooks/use-subscription"
 import { usePathname } from "next/navigation"
 
 interface WatermarkNoticeProps {
-  isPaidUser: boolean
   className?: string
 }
 
-export function WatermarkNotice({ isPaidUser, className = "" }: WatermarkNoticeProps) {
-  const { hasOneTimeAccess, creditsRemaining } = useOneTimePayment()
+export function WatermarkNotice({ className = "" }: WatermarkNoticeProps) {
+  const { hasOneTimeAccess } = useOneTimePayment()
+  const { subscription } = useSubscription()
   const pathname = usePathname()
 
-  if (isPaidUser || hasOneTimeAccess) {
+  // Check if user has active subscription (monthly or yearly)
+  const hasActiveSubscription = subscription?.isPaidUser || subscription?.isAdmin || false
+  
+  // If user has an active subscription (monthly/yearly/admin), never show watermark notice
+  if (hasActiveSubscription) {
     return null
   }
 
+  // If user has one-time access, don't show the notice
+  if (hasOneTimeAccess) {
+    return null
+  }
+
+  // Only show watermark notice for free users without any paid access
   const handleOneTimePayment = () => {
     window.location.href = `/api/stripe/one-time-checkout?returnTo=${encodeURIComponent(pathname)}`
   }
@@ -77,22 +88,28 @@ export function OneTimeAccessStatus({ className = "" }: OneTimeAccessStatusProps
 }
 
 interface SubscriptionStatusProps {
-  isPaidUser: boolean
-  plan: string
   className?: string
 }
 
-export function SubscriptionStatus({ isPaidUser, plan, className = "" }: SubscriptionStatusProps) {
-  if (!isPaidUser) {
+export function SubscriptionStatus({ className = "" }: SubscriptionStatusProps) {
+  const { subscription } = useSubscription()
+  
+  // Check if user has active subscription (including admin)
+  const hasActiveSubscription = subscription?.isPaidUser || subscription?.isAdmin || false
+  
+  if (!hasActiveSubscription) {
     return null
   }
 
   const planDetails = {
     monthly: { name: "Monthly Pro", color: "text-purple-600" },
-    yearly: { name: "Yearly Pro", color: "text-green-600" }
+    yearly: { name: "Yearly Pro", color: "text-green-600" },
+    pro: { name: "Admin Pro", color: "text-blue-600" }
   }
 
-  const details = planDetails[plan as keyof typeof planDetails] || { name: "Pro", color: "text-blue-600" }
+  // Use effective plan name
+  const effectivePlan = subscription?.isAdmin ? "pro" : subscription?.plan
+  const details = planDetails[effectivePlan as keyof typeof planDetails] || { name: "Pro", color: "text-blue-600" }
 
   return (
     <Alert className={`border-green-200 bg-green-50 ${className}`}>

@@ -82,12 +82,6 @@ export function Footer() {
               >
                 Contact
               </Link>
-              <Link
-                href="/blog"
-                className="block hover:text-white transition-colors"
-              >
-                Blog
-              </Link>
             </div>
           </div>
 
@@ -95,22 +89,22 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Legal</h3>
             <div className="space-y-2 text-gray-400">
               <Link
-                href="/privacy"
+                href="/legal/privacy-policy"
                 className="block hover:text-white transition-colors"
               >
                 Privacy Policy
               </Link>
               <Link
-                href="/terms"
+                href="/legal/terms-of-use"
                 className="block hover:text-white transition-colors"
               >
-                Terms of Service
+                Terms of Use
               </Link>
               <Link
-                href="/security"
+                href="/legal/subscription-agreement"
                 className="block hover:text-white transition-colors"
               >
-                Security
+                Subscription Agreement
               </Link>
             </div>
           </div>

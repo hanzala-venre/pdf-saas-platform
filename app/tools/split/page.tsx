@@ -280,15 +280,12 @@ export default function SplitPDFPage() {
           <p className="text-gray-600 mt-1">Extract pages or split PDFs into separate documents</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
           </>
         )}
 

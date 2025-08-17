@@ -259,15 +259,12 @@ export default function ImageToPDFPage() {
           <p className="text-gray-600 mt-1">Convert multiple images into a single PDF document</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
             <OneTimeAccessStatus />
           </>
         )}

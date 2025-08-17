@@ -185,11 +185,28 @@ export async function POST(req: NextRequest) {
           })
 
           if (user) {
-            // Update subscription status to active
+            // Get the plan name from subscription
+            const planName = subscription.items.data[0]?.price.lookup_key || "monthly"
+            
+            // Safely convert timestamp to Date
+            let periodEndDate: Date | null = null;
+            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+              const timestamp = subscription.current_period_end * 1000;
+              const date = new Date(timestamp);
+              if (!isNaN(date.getTime())) {
+                periodEndDate = date;
+              }
+            }
+
+            // Update subscription status to active and ensure plan is set correctly
             await prisma.user.update({
               where: { id: user.id },
               data: {
                 subscriptionStatus: "active",
+                subscriptionPlan: planName,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: subscriptionId,
+                subscriptionCurrentPeriodEnd: periodEndDate,
               },
             })
 

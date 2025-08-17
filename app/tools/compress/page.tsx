@@ -245,15 +245,12 @@ export default function CompressPDFPage() {
           <p className="text-gray-600 mt-1">Reduce PDF file size while maintaining quality</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
             <OneTimeAccessStatus />
           </>
         )}

@@ -189,11 +189,11 @@ export default function SignUpPage() {
                 />
                 <Label htmlFor="terms" className="text-sm">
                   I agree to the{" "}
-                  <Link href="/terms" className="text-blue-600 hover:underline">
-                    Terms of Service
+                  <Link href="/legal/terms-of-use" className="text-blue-600 hover:underline">
+                    Terms of Use
                   </Link>{" "}
                   and{" "}
-                  <Link href="/privacy" className="text-blue-600 hover:underline">
+                  <Link href="/legal/privacy-policy" className="text-blue-600 hover:underline">
                     Privacy Policy
                   </Link>
                 </Label>

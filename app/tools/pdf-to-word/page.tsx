@@ -193,15 +193,12 @@ export default function PDFToWordPage() {
           <p className="text-gray-600 mt-1">Convert your PDF documents to editable Word (.docx) format</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
             <OneTimeAccessStatus />
           </>
         )}

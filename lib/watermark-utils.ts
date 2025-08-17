@@ -8,9 +8,10 @@ export interface WatermarkFreeStatus {
   hasWatermarkFreeAccess: boolean
   isPaidUser: boolean
   hasOneTimeAccess: boolean
-  accessType: 'subscription' | 'oneTime' | 'free'
+  accessType: 'subscription' | 'oneTime' | 'free' | 'admin'
   userId?: string
   shouldConsumeCredit?: boolean
+  isAdmin?: boolean
 }
 
 /**
@@ -45,7 +46,8 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
       isPaidUser: false,
       hasOneTimeAccess: validOneTimeAccess,
       accessType: validOneTimeAccess ? 'oneTime' : 'free',
-      shouldConsumeCredit: validOneTimeAccess
+      shouldConsumeCredit: validOneTimeAccess,
+      isAdmin: false
     }
   }
 
@@ -55,6 +57,7 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
       where: { email: session.user.email },
       select: {
         id: true,
+        role: true,
         subscriptionPlan: true,
         subscriptionStatus: true,
         subscriptionCurrentPeriodEnd: true,
@@ -67,21 +70,28 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
         isPaidUser: false,
         hasOneTimeAccess: validOneTimeAccess,
         accessType: validOneTimeAccess ? 'oneTime' : 'free',
-        shouldConsumeCredit: validOneTimeAccess
+        shouldConsumeCredit: validOneTimeAccess,
+        isAdmin: false
       }
     }
+
+    // Check if user is admin - admins have unlimited access
+    const isAdmin = user.role === "ADMIN"
 
     // Check if subscription is expired
     const now = new Date()
     const isExpired = user.subscriptionCurrentPeriodEnd && now > user.subscriptionCurrentPeriodEnd
     const effectivePlan = isExpired ? "free" : user.subscriptionPlan
-    const isPaidUser = effectivePlan === "monthly" || effectivePlan === "yearly"
+    const isPaidUser = (effectivePlan === "monthly" || effectivePlan === "yearly") && !isExpired
 
     // Determine access type and status
     let hasWatermarkFreeAccess = false
-    let accessType: 'subscription' | 'oneTime' | 'free' = 'free'
+    let accessType: 'subscription' | 'oneTime' | 'free' | 'admin' = 'free'
 
-    if (isPaidUser) {
+    if (isAdmin) {
+      hasWatermarkFreeAccess = true
+      accessType = 'admin'
+    } else if (isPaidUser && !isExpired) {
       hasWatermarkFreeAccess = true
       accessType = 'subscription'
     } else if (validOneTimeAccess) {
@@ -91,11 +101,12 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
 
     return {
       hasWatermarkFreeAccess,
-      isPaidUser,
+      isPaidUser: isPaidUser || isAdmin, // Admins count as paid users
       hasOneTimeAccess: validOneTimeAccess,
       accessType,
       userId: user.id,
-      shouldConsumeCredit: validOneTimeAccess && !isPaidUser
+      shouldConsumeCredit: validOneTimeAccess && !isPaidUser && !isAdmin, // Don't consume credits for paid users or admins
+      isAdmin
     }
   } catch (error) {
     console.error('Error checking watermark-free access:', error)

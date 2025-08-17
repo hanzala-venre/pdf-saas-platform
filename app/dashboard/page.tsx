@@ -49,6 +49,7 @@ interface SubscriptionInfo {
   cancelAtPeriodEnd: boolean
   stripeCustomerId: string | null
   paymentProcessing?: boolean
+  isAdmin: boolean
 }
 
 export default function DashboardPage() {
@@ -96,19 +97,25 @@ export default function DashboardPage() {
   // Use subscription info from billing API for more accurate data
   const currentPlan = subscriptionInfo?.plan || stats?.subscription || "free"
   const subscriptionStatus = subscriptionInfo?.status || stats?.subscriptionStatus || "inactive"
+  const isAdmin = subscriptionInfo?.isAdmin || false
   const isPaymentProcessing = subscriptionStatus === "incomplete" || subscriptionStatus === "incomplete_expired" || subscriptionInfo?.paymentProcessing
-  const isPaidUser = (currentPlan !== "free" && subscriptionStatus === "active") || isPaymentProcessing
+  const isPaidUser = (currentPlan !== "free" && subscriptionStatus === "active") || isPaymentProcessing || isAdmin
   
   // Format plan name for display
   const getPlanDisplayName = (plan: string) => {
     if (isPaymentProcessing) {
       return "Payment Processing..."
     }
+    if (isAdmin) {
+      return "Admin Pro"
+    }
     switch (plan) {
       case "monthly":
         return "Pro Monthly"
       case "yearly":
         return "Pro Yearly"
+      case "pro":
+        return isAdmin ? "Admin Pro" : "Pro Plan"
       case "free":
         return "Free Plan"
       default:

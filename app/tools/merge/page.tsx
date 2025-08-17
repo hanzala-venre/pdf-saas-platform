@@ -227,15 +227,12 @@ export default function MergePDFPage() {
           <p className="text-gray-600 mt-1">Combine multiple PDF files into one document</p>
         </div>
 
-        <WatermarkNotice isPaidUser={hasWatermarkFreeAccess} />
+        <WatermarkNotice />
 
         {/* Subscription Status */}
         {!subscriptionLoading && subscription && (
           <>
-            <SubscriptionStatus 
-              isPaidUser={hasWatermarkFreeAccess} 
-              plan={subscription.plan} 
-            />
+            <SubscriptionStatus />
             <OneTimeAccessStatus />
           </>
         )}

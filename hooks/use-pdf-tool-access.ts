@@ -7,11 +7,12 @@ export interface PDFToolAccess {
   subscriptionLoading: boolean
   hasOneTimeAccess: boolean
   hasWatermarkFreeAccess: boolean
-  accessType: 'subscription' | 'oneTime' | 'free'
+  accessType: 'subscription' | 'oneTime' | 'free' | 'admin'
   creditsRemaining: number
   apiClient: PDFToolAPI
   consumeCredit: () => boolean
   purchaseId?: string
+  isAdmin: boolean
 }
 
 /**
@@ -28,11 +29,14 @@ export function usePDFToolAccess(): PDFToolAccess {
   } = useOneTimePayment()
 
   // Determine if user has watermark-free access
-  const hasWatermarkFreeAccess = (subscription?.isPaidUser || hasOneTimeAccess) ?? false
+  const isAdmin = subscription?.isAdmin ?? false
+  const hasWatermarkFreeAccess = (subscription?.isPaidUser || hasOneTimeAccess || isAdmin) ?? false
 
   // Determine access type
-  let accessType: 'subscription' | 'oneTime' | 'free' = 'free'
-  if (subscription?.isPaidUser) {
+  let accessType: 'subscription' | 'oneTime' | 'free' | 'admin' = 'free'
+  if (isAdmin) {
+    accessType = 'admin'
+  } else if (subscription?.isPaidUser) {
     accessType = 'subscription'
   } else if (hasOneTimeAccess) {
     accessType = 'oneTime'
@@ -53,7 +57,8 @@ export function usePDFToolAccess(): PDFToolAccess {
     creditsRemaining,
     apiClient,
     consumeCredit: consumeOneTimeCredit,
-    purchaseId
+    purchaseId,
+    isAdmin
   }
 }
 
