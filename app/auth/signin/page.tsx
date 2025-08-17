@@ -11,6 +11,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import logoImage from "@/assets/logo.png"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SignInPage() {
@@ -91,7 +92,7 @@ export default function SignInPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center justify-center">
             <Image 
-              src="/logo.png" 
+              src={logoImage} 
               alt="PDFTools Pro Logo" 
               width={96} 
               height={32} 

@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@/components/analytics"
 import { Suspense } from "react"
+import logoImage from "@/assets/logo.png"
+import faviconImage from "@/assets/favicon.ico"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -57,7 +59,7 @@ export const metadata: Metadata = {
     images: [
      
       {
-        url: "/logo.png",
+        url: logoImage.src,
         width: 800,
         height: 600,
         alt: "QuikPDF Pro Logo",
@@ -70,7 +72,7 @@ export const metadata: Metadata = {
     creator: "@quikpdfpro",
     title: "QuikPDF Pro - Professional PDF Processing & Editing Tools",
     description: "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs online.",
-    images: ["/logo.png"],
+    images: [logoImage.src],
   },
   alternates: {
     canonical: "https://quikpdfpro.com",
@@ -132,8 +134,8 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="format-detection" content="telephone=no" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="icon" href={faviconImage.src} />
+        <link rel="apple-touch-icon" href={logoImage.src} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

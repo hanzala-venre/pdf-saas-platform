@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Image from "next/image"
+import logoImage from "@/assets/logo.png"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -29,7 +30,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
 <Image
-              src="/logo.png"
+              src={logoImage}
               alt="Logo"
               width={96}
               height={32}

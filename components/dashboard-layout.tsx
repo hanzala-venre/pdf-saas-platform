@@ -15,6 +15,7 @@ import {
 import { Home, Settings, CreditCard, History, Menu, X, Wrench } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image";
+import logoImage from "@/assets/logo.png"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -42,7 +43,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="flex h-16 items-center justify-between px-4 border-b">
               <Link href="/" className="flex items-center justify-center">
                 <Image 
-                  src="/logo.png" 
+                  src={logoImage} 
                   alt="PDFTools Pro Logo" 
                   width={200} 
                   height={32} 
@@ -78,7 +79,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 items-center px-6 border-b">
           <Link href="/" className="flex items-center justify-center">
             <Image 
-              src="/logo.png" 
+              src={logoImage} 
               alt="PDFTools Pro Logo" 
               width={96} 
               height={24} 

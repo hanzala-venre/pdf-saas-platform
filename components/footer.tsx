@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image";
+import logoImage from "@/assets/logo.png"
 export function Footer() {
   return (
     <footer className="bg-gray-900 text-white py-12 px-4">
@@ -12,7 +13,7 @@ export function Footer() {
               className="flex items-center gap-2 font-bold text-xl mb-4"
             >
               <Image
-                src="/logo.png"
+                src={logoImage}
                 alt="Logo"
                 width={100}
                 height={32}
