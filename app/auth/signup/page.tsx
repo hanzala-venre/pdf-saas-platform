@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { FileText } from "lucide-react"
+import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
 
@@ -117,11 +117,14 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 font-bold text-2xl">
-            <FileText className="h-8 w-8 text-blue-600" />
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              PDFTools Pro
-            </span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <Image 
+              src="/logo.png" 
+              alt="PDFTools Pro Logo" 
+              width={96} 
+              height={24} 
+              className="h-6 w-32"
+            />
           </Link>
         </div>
 

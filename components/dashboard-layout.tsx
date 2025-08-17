@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { FileText, Home, Settings, CreditCard, History, Menu, X, Wrench } from "lucide-react"
+import { Home, Settings, CreditCard, History, Menu, X, Wrench } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image";
 import { useState } from "react"
@@ -40,13 +40,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
             <div className="flex h-16 items-center justify-between px-4 border-b">
-              <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-                <Image
-                              src="/logo.png"
-                              alt="Logo"
-                              width={96}
-                              height={32}
-                            />
+              <Link href="/" className="flex items-center justify-center">
+                <Image 
+                  src="/logo.png" 
+                  alt="PDFTools Pro Logo" 
+                  width={200} 
+                  height={32} 
+                  className="h-8 w-64"
+                />
               </Link>
               <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                 <X className="h-6 w-6" />
@@ -75,9 +76,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-64 lg:bg-white lg:border-r">
         <div className="flex h-16 items-center px-6 border-b">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <FileText className="h-8 w-8 text-blue-600" />
-            PDFTools Pro
+          <Link href="/" className="flex items-center justify-center">
+            <Image 
+              src="/logo.png" 
+              alt="PDFTools Pro Logo" 
+              width={96} 
+              height={24} 
+              className="h-5 w-24"
+            />
           </Link>
         </div>
         <nav className="p-4 space-y-2">

@@ -6,7 +6,6 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import {
   FileText,
   Merge,
@@ -31,7 +30,6 @@ import { useAnalytics } from "@/hooks/use-analytics"
 
 interface DashboardStats {
   operationsThisMonth: number
-  operationsLimit: number
   subscription: string
   subscriptionStatus: string
   currentPeriodEnd: string | null

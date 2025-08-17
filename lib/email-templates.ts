@@ -132,7 +132,6 @@ export const getPlanUpgradeTemplate = (
         <li>Advanced PDF editing tools</li>
         <li>Priority customer support</li>
         <li>Batch processing capabilities</li>
-        <li>API access (Premium plans)</li>
     </ul>
     
     <a href="${COMPANY_WEBSITE}/dashboard" class="button">Explore New Features</a>

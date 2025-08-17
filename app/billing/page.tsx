@@ -440,25 +440,13 @@ export default function BillingPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">
-                    {usage.currentMonth} of {isPaid ? "unlimited" : usage.limit} PDFs processed
+                    {usage.currentMonth} PDFs processed this month
                   </span>
-                  {!isPaid && (
-                    <span className="text-sm text-gray-600">{usage.limit - usage.currentMonth} remaining</span>
-                  )}
+                  <span className="text-sm text-gray-600">Unlimited usage available</span>
                 </div>
-
-                {!isPaid && <Progress value={(usage.currentMonth / usage.limit) * 100} className="w-full" />}
 
                 <div className="flex justify-between items-center text-sm text-gray-600">
                   <span>Resets on: {new Date(usage.resetDate).toLocaleDateString()}</span>
-                  {!isPaid && usage.currentMonth >= usage.limit && (
-                    <Button size="sm" asChild>
-                      <a href="/pricing">
-                        <Crown className="mr-2 h-4 w-4" />
-                        Upgrade Now
-                      </a>
-                    </Button>
-                  )}
                 </div>
               </div>
             )}

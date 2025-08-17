@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import Stripe from "stripe"
@@ -10,25 +10,47 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions) as any
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: {
-        subscriptionPlan: true,
-        subscriptionStatus: true,
-        subscriptionCurrentPeriodEnd: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
-      },
-    })
+    let user
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: {
+          subscriptionPlan: true,
+          subscriptionStatus: true,
+          subscriptionCurrentPeriodEnd: true,
+          stripeCustomerId: true,
+          stripeSubscriptionId: true,
+        },
+      })
+    } catch (dbError) {
+      console.error("Database connection error:", dbError)
+      // Return default values when database is unavailable
+      return NextResponse.json({
+        plan: "free",
+        status: "inactive", 
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+      })
+    }
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // Return default values for new users or when user not found
+      return NextResponse.json({
+        plan: "free",
+        status: "inactive",
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+      })
     }
 
     // Determine if subscription should be cancelled at period end

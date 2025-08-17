@@ -470,7 +470,7 @@ export default function ReactPDFEditor() {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-lg">Drag & drop a PDF file here, or click to select</p>
-                    <p className="text-sm text-muted-foreground">Support for PDF files up to 50MB</p>
+                    <p className="text-sm text-muted-foreground">Upload any PDF file to get started</p>
                   </div>
                 )}
               </div>

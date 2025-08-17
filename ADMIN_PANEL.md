@@ -55,7 +55,7 @@ The admin panel provides comprehensive platform management capabilities with rea
 ### 🛠 System Settings
 - **Platform Configuration**: Site name, description, maintenance mode
 - **Security Settings**: Admin access control, 2FA recommendations
-- **File Limits**: Configure max file sizes and user limits
+- **System Configuration**: Application settings and configurations
 - **Integration Management**: Stripe webhook configuration
 - **Notification Settings**: Email alert preferences
 
@@ -188,7 +188,6 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 ### Planned Features
 - **Email Campaign Management**: Send notifications to users
 - **Advanced Reporting**: Custom report generation
-- **API Key Management**: Developer API access control
 - **Multi-tenant Support**: Multiple organization management
 - **Automated Alerts**: System health monitoring
 - **A/B Testing**: Feature flag management

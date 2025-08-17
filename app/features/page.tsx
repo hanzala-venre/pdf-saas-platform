@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { 
   Merge, Split, FileArchiveIcon as Compress, Edit, FileType, Image, 
   ArrowUpDown, Monitor, Table, Shield, Zap, Clock, Globe, 
-  Lock, Cloud, Download, Layers, Users, CheckCircle
+  Lock, Cloud, Download, Layers, Users
 } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -131,17 +131,6 @@ export default function FeaturesPage() {
     }
   ]
 
-  const enterpriseFeatures = [
-    "API Access for Developers",
-    "Custom Branding Options", 
-    "Advanced Security Controls",
-    "Priority Support",
-    "Usage Analytics & Reporting",
-    "Team Management",
-    "Custom Integrations",
-    "SLA Guarantees"
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -223,37 +212,6 @@ export default function FeaturesPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise Features */}
-      <section className="py-16 px-4 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">
-              Enterprise Features
-            </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Advanced capabilities for teams and organizations requiring enterprise-grade PDF processing solutions.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {enterpriseFeatures.map((feature, index) => (
-              <div key={index} className="flex items-center space-x-3 p-4 bg-gray-800 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span className="text-gray-200">{feature}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <Button size="lg" variant="secondary" asChild>
-              <Link href="/pricing">
-                View Enterprise Plans
-              </Link>
-            </Button>
           </div>
         </div>
       </section>

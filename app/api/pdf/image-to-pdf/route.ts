@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import type { Session } from "next-auth"
-import { checkWatermarkFreeAccess, checkUsageLimits } from "@/lib/watermark-utils"
+import { checkWatermarkFreeAccess, consumeOneTimeCredit } from "@/lib/watermark-utils"
 import { PDFOperationService } from "@/lib/pdf-operation-service"
 
 // Supported image types
@@ -23,18 +23,8 @@ export async function POST(request: NextRequest) {
     const accessStatus = await checkWatermarkFreeAccess(request)
     const session = await getServerSession(authOptions) as Session | null
 
-    // For logged-in users, check usage limits if they're on free plan
-    if (session?.user?.email && !accessStatus.hasWatermarkFreeAccess) {
-      if (accessStatus.userId) {
-        const usageLimits = await checkUsageLimits(accessStatus.userId)
-        if (!usageLimits.canUse) {
-          return NextResponse.json({ 
-            error: "Usage limit exceeded. Upgrade to continue.",
-            usageInfo: usageLimits
-          }, { status: 429 })
-        }
-      }
-    }
+    // For logged-in users, we no longer check usage limits - unlimited for everyone
+    // Usage tracking is still done for analytics but no limits are enforced
 
     const formData = await request.formData()
     
@@ -147,14 +137,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // If using one-time access, consume the credit immediately after successful operation
+    let headers: Record<string, string> = {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": 'attachment; filename="converted-images.pdf"',
+      "Content-Length": pdfBytes.length.toString(),
+    }
+    
+    if (accessStatus.shouldConsumeCredit) {
+      await consumeOneTimeCredit(request)
+      headers['x-one-time-credit-consumed'] = 'true'
+    }
+
     // Return the PDF
-    return new NextResponse(pdfBytes, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="converted-images.pdf"',
-        "Content-Length": pdfBytes.length.toString(),
-      },
-    })
+    return new NextResponse(Buffer.from(pdfBytes), { headers })
 
   } catch (error) {
     console.error("Error in image-to-pdf operation:", error)

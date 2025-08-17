@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 })
     }
 
-    // Validate file size (50MB limit)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Validate file size (very high limit for unlimited usage)
+    const maxSize = 1024 * 1024 * 1024 // 1GB - effectively unlimited for practical use
     if (file.size > maxSize) {
       return NextResponse.json({ 
-        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024)}MB` 
+        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024 * 1024)}GB` 
       }, { status: 413 })
     }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { checkWatermarkFreeAccess } from "@/lib/watermark-utils"
+import { checkWatermarkFreeAccess, consumeOneTimeCredit } from "@/lib/watermark-utils"
 
 // FastAPI backend URL - Update this with your deployed FastAPI URL
 const FASTAPI_BASE_URL = (process.env.FASTAPI_BASE_URL || "https://your-fastapi-deployment.vercel.app").replace(/\/+$/, "")
@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 })
     }
 
-    // Validate file size (100MB limit for image conversion)
-    const maxSize = 100 * 1024 * 1024 // 100MB
+    // Validate file size (very high limit for unlimited usage)
+    const maxSize = 1024 * 1024 * 1024 // 1GB - effectively unlimited for practical use
     if (file.size > maxSize) {
       return NextResponse.json({ 
-        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024)}MB` 
+        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024 * 1024)}GB` 
       }, { status: 413 })
     }
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call FastAPI backend
-    const response = await fetch(`${FASTAPI_BASE_URL}/api/convert/pdf-to-image`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/api/convert/pdf-to-images`, {
       method: "POST",
       body: fastApiFormData,
     })
@@ -87,13 +87,21 @@ export async function POST(request: NextRequest) {
     const contentType = response.headers.get('content-type') || 'application/octet-stream'
     const contentDisposition = response.headers.get('content-disposition') || 'attachment; filename="converted"'
 
+    // If using one-time access, consume the credit immediately after successful operation
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'Content-Disposition': contentDisposition,
+      'Content-Length': fileBuffer.byteLength.toString(),
+    }
+    
+    if (accessStatus.shouldConsumeCredit) {
+      await consumeOneTimeCredit(request)
+      headers['x-one-time-credit-consumed'] = 'true'
+    }
+
     return new NextResponse(fileBuffer, {
       status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': contentDisposition,
-        'Content-Length': fileBuffer.byteLength.toString(),
-      },
+      headers,
     })
 
   } catch (error) {

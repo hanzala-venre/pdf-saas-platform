@@ -60,12 +60,8 @@ export async function GET() {
       },
     })
 
-    // No operation limits - unlimited usage for all users
-    const operationsLimit = 999999
-
     return NextResponse.json({
       operationsThisMonth,
-      operationsLimit,
       recentOperations,
       subscription: effectivePlan,
       subscriptionStatus: user.subscriptionStatus,

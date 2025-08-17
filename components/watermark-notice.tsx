@@ -23,22 +23,23 @@ export function WatermarkNotice({ isPaidUser, className = "" }: WatermarkNoticeP
 
   return (
     <Alert className={`border-amber-200 bg-amber-50 ${className}`}>
-      <AlertTriangle className="h-4 w-4 text-amber-600" />
+      <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
       <AlertDescription className="text-amber-800">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
             <strong>Free Plan Notice:</strong> Generated PDFs will include a watermark at the bottom of each page.
             <br />
             <span className="text-sm">Remove watermarks with a subscription or one-time payment (single use).</span>
           </div>
-          <div className="ml-4 flex gap-2">
-            <Button size="sm" variant="outline" onClick={handleOneTimePayment} className="border-amber-300 text-amber-700 hover:bg-amber-100">
-              <Zap className="mr-2 h-4 w-4" />
-              Remove Once ($2.49)
+          <div className="flex flex-col sm:flex-row gap-2 sm:ml-4 sm:flex-shrink-0">
+            <Button size="sm" variant="outline" onClick={handleOneTimePayment} className="border-amber-300 text-amber-700 hover:bg-amber-100 w-full sm:w-auto whitespace-nowrap">
+              <Zap className="mr-2 h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Remove Once ($2.49)</span>
+              <span className="sm:hidden">$2.49</span>
             </Button>
-            <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700">
-              <a href="/pricing">
-                <Crown className="mr-2 h-4 w-4" />
+            <Button size="sm" asChild className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto">
+              <a href="/pricing" className="flex items-center justify-center">
+                <Crown className="mr-2 h-4 w-4 flex-shrink-0" />
                 Upgrade
               </a>
             </Button>
@@ -62,10 +63,14 @@ export function OneTimeAccessStatus({ className = "" }: OneTimeAccessStatusProps
 
   return (
     <Alert className={`border-green-200 bg-green-50 ${className}`}>
-      <Clock className="h-4 w-4 text-green-600" />
+      <Clock className="h-4 w-4 text-green-600 flex-shrink-0" />
       <AlertDescription className="text-green-800">
-        <strong>Watermark-Free Credit Active:</strong> You have one watermark-free processing available. 
-        <span className="font-medium"> This credit will be consumed after your next tool use.</span>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <strong>Watermark-Free Credit Active:</strong> You have one watermark-free processing available. 
+            <span className="font-medium"> This credit will be consumed after your next tool use.</span>
+          </div>
+        </div>
       </AlertDescription>
     </Alert>
   )
@@ -91,9 +96,13 @@ export function SubscriptionStatus({ isPaidUser, plan, className = "" }: Subscri
 
   return (
     <Alert className={`border-green-200 bg-green-50 ${className}`}>
-      <Crown className="h-4 w-4 text-green-600" />
+      <Crown className="h-4 w-4 text-green-600 flex-shrink-0" />
       <AlertDescription className={`text-green-800 ${details.color}`}>
-        <strong>{details.name} Member:</strong> No watermarks will be added to your PDFs. Enjoy unlimited processing!
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <strong>{details.name} Member:</strong> No watermarks will be added to your PDFs. Enjoy unlimited processing!
+          </div>
+        </div>
       </AlertDescription>
     </Alert>
   )

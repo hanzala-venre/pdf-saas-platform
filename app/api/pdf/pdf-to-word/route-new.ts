@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { checkWatermarkFreeAccess } from "@/lib/watermark-utils"
+import { checkWatermarkFreeAccess, consumeOneTimeCredit } from "@/lib/watermark-utils"
 
 // FastAPI backend URL
 const FASTAPI_BASE_URL = (process.env.FASTAPI_BASE_URL || "http://127.0.0.1:8001").replace(/\/+$/, "")
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 })
     }
 
-    // Validate file size (50MB limit)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Validate file size (very high limit for unlimited usage)
+    const maxSize = 1024 * 1024 * 1024 // 1GB - effectively unlimited for practical use
     if (file.size > maxSize) {
       return NextResponse.json({ 
-        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024)}MB` 
+        error: `File size too large. Maximum size is ${maxSize / (1024 * 1024 * 1024)}GB` 
       }, { status: 413 })
     }
 
@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
     if (ct) headers.set('content-type', ct)
     if (cd) headers.set('content-disposition', cd)
     headers.set('content-length', String(arrayBuffer.byteLength))
+    
+    // If using one-time access, consume the credit immediately after successful operation
+    if (accessStatus.shouldConsumeCredit) {
+      await consumeOneTimeCredit(request)
+      headers.set('x-one-time-credit-consumed', 'true')
+    }
+    
     return new NextResponse(arrayBuffer, { status: 200, headers })
 
   } catch (error) {

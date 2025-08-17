@@ -24,9 +24,9 @@ export async function makePDFToolRequest(
     // Add headers to indicate one-time access status and purchase ID
     const headers: HeadersInit = {}
     if (hasOneTimeAccess) {
-      headers['X-One-Time-Access'] = 'true'
+      headers['x-one-time-access'] = 'true'
       if (purchaseId) {
-        headers['X-Purchase-Id'] = purchaseId
+        headers['x-purchase-id'] = purchaseId
       }
     }
 
@@ -37,7 +37,7 @@ export async function makePDFToolRequest(
     })
 
     // Check if a credit was consumed on the server side
-    if (response.ok && response.headers.get('X-One-Time-Credit-Consumed') === 'true') {
+    if (response.ok && response.headers.get('x-one-time-credit-consumed') === 'true') {
       onCreditConsumed?.()
       console.log('One-time credit was consumed on server side')
     }

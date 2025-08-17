@@ -585,12 +585,6 @@ export default function AdminDashboard() {
                   <span>Operations</span>
                 </a>
               </Button>
-              <Button variant="outline" className="h-auto p-4 flex-col gap-2" asChild>
-                <a href="/admin/settings">
-                  <Calendar className="h-6 w-6" />
-                  <span>Settings</span>
-                </a>
-              </Button>
             </div>
           </CardContent>
         </Card>

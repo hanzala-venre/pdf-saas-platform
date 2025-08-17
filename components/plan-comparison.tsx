@@ -23,7 +23,7 @@ const plans = [
     color: "gray",
     features: [
       "Basic PDF operations",
-      "5 files per day",
+      "All file sizes supported",
       "Watermarked outputs",
       "Community support"
     ]
@@ -40,7 +40,7 @@ const plans = [
     features: [
       "Unlimited PDF operations",
       "No watermarks",
-      "Files up to 100MB",
+      "All file sizes supported",
       "Priority processing",
       "Email support"
     ]
@@ -56,9 +56,8 @@ const plans = [
     badge: "Save $4/year",
     features: [
       "Everything in Monthly Pro",
-      "Files up to 500MB",
+      "All file sizes supported",
       "Batch processing",
-      "API access",
       "Priority support"
     ]
   }

@@ -110,7 +110,7 @@ export async function checkWatermarkFreeAccess(request: NextRequest): Promise<Wa
 }
 
 /**
- * Check usage limits for free users
+ * Check usage limits for free users - Updated to allow unlimited usage
  */
 export async function checkUsageLimits(userId: string): Promise<{ canUse: boolean; operationsUsed: number; limit: number }> {
   try {
@@ -128,14 +128,48 @@ export async function checkUsageLimits(userId: string): Promise<{ canUse: boolea
       },
     })
 
-    const limit = 5 // Free users get 5 operations per month
+    // No limits - allow unlimited operations
     return {
-      canUse: operationsThisMonth < limit,
+      canUse: true,
       operationsUsed: operationsThisMonth,
-      limit
+      limit: -1 // -1 indicates unlimited
     }
   } catch (error) {
     console.error('Error checking usage limits:', error)
-    return { canUse: false, operationsUsed: 0, limit: 5 }
+    return { canUse: true, operationsUsed: 0, limit: -1 }
+  }
+}
+
+/**
+ * Consume one-time credit by marking the purchase ID as used
+ */
+export async function consumeOneTimeCredit(request: NextRequest): Promise<void> {
+  try {
+    // Get the purchase ID from request headers or cookies
+    const purchaseId = request.headers.get('x-purchase-id') || 
+                      request.cookies.get('one-time-purchase-id')?.value
+
+    if (purchaseId) {
+      // Store consumed purchase ID in database to prevent reuse
+      try {
+        await (prisma as any).consumedOneTimePayment.create({
+          data: {
+            purchaseId,
+            consumedAt: new Date(),
+            operationType: 'PDF_OPERATION'
+          }
+        })
+        console.log(`One-time credit consumed for purchase ID: ${purchaseId}`)
+      } catch (error: any) {
+        // If it already exists (duplicate), that's fine - it means it was already consumed
+        if (!error.message?.includes('Unique constraint') && !error.message?.includes('unique constraint')) {
+          throw error
+        }
+        console.log(`Purchase ID already consumed: ${purchaseId}`)
+      }
+    }
+  } catch (error) {
+    console.error('Error consuming one-time credit:', error)
+    // Don't throw - this shouldn't break the main operation
   }
 }

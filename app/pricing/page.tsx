@@ -37,9 +37,25 @@ export default function PricingPage() {
       if (response.ok) {
         const data = await response.json()
         setSubscriptionInfo(data)
+      } else {
+        console.error("Failed to fetch subscription info:", response.status)
+        // Set default values on error
+        setSubscriptionInfo({
+          plan: "free",
+          status: "inactive",
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false
+        })
       }
     } catch (error) {
       console.error("Error fetching subscription info:", error)
+      // Set default values on error
+      setSubscriptionInfo({
+        plan: "free", 
+        status: "inactive",
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false
+      })
     } finally {
       setLoading(false)
     }
@@ -104,7 +120,7 @@ export default function PricingPage() {
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>5 PDF operations per month</span>
+                    <span>All PDF operations</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
@@ -112,7 +128,7 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>Files up to 10MB</span>
+                    <span>All file sizes supported</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
@@ -142,9 +158,9 @@ export default function PricingPage() {
                 </div>
                 <div className="mt-4">
                   <span className="text-3xl font-bold">$2.49</span>
-                  <span className="text-gray-600">/24hrs</span>
+                  <span className="text-gray-600">/use</span>
                 </div>
-                <CardDescription>Quick watermark removal for guests</CardDescription>
+                <CardDescription>Single-use watermark removal for guests</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-3">
@@ -154,11 +170,11 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>All tools for 24 hours</span>
+                    <span>One-time use of any tool</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>Files up to 50MB</span>
+                    <span>All file sizes supported</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
@@ -213,7 +229,7 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>Files up to 100MB</span>
+                    <span>All file sizes supported</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
@@ -277,15 +293,11 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
-                    <span>Files up to 500MB</span>
+                    <span>All file sizes supported</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
                     <span>Batch processing</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span>API access</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-600" />
