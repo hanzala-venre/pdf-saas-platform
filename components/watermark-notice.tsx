@@ -14,16 +14,13 @@ export function WatermarkNotice({ className = "" }: WatermarkNoticeProps) {
   const { subscription } = useSubscription()
   const pathname = usePathname()
 
-  // Check if user has active subscription (monthly or yearly)
-  const hasActiveSubscription = subscription?.isPaidUser || subscription?.isAdmin || false
-  
-  // If user has an active subscription (monthly/yearly/admin), never show watermark notice
-  if (hasActiveSubscription) {
-    return null
-  }
+  // --- Robust logic: Only show watermark notice for users who are NOT paid (monthly/yearly), NOT admin, and NOT one-time access ---
+  const isPaid = !!subscription?.isPaidUser
+  const isAdmin = !!subscription?.isAdmin
+  const isOneTime = !!hasOneTimeAccess
 
-  // If user has one-time access, don't show the notice
-  if (hasOneTimeAccess) {
+  if (isPaid || isAdmin || isOneTime) {
+    // Hide watermark notice for paid, admin, or one-time access
     return null
   }
 
