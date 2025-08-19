@@ -66,78 +66,78 @@ export async function POST(req: NextRequest) {
         })
 
         if (user) {
-          // Get the old plan before update
-          const oldPlan = user.subscriptionPlan || "free"
-          const newPlan = subscription.items.data[0]?.price.lookup_key || "free"
-
-          // Safely convert timestamp to Date
-          let periodEndDate: Date | null = null;
-          if (subscription.current_period_end) {
-            let timestamp: number | null = null;
-            if (typeof subscription.current_period_end === 'number') {
-              timestamp = subscription.current_period_end * 1000;
-            } else if (typeof subscription.current_period_end === 'string') {
-              // Some Stripe APIs may return as string
-              const parsed = parseInt(subscription.current_period_end, 10);
-              if (!isNaN(parsed)) {
-                timestamp = parsed * 1000;
+          // Only update if subscription is active
+          if (subscription.status === "active") {
+            const oldPlan = user.subscriptionPlan || "free"
+            const newPlan = subscription.items.data[0]?.price.lookup_key || "free"
+            // Safely convert timestamp to Date
+            let periodEndDate: Date | null = null;
+            if (subscription.current_period_end) {
+              let timestamp: number | null = null;
+              if (typeof subscription.current_period_end === 'number') {
+                timestamp = subscription.current_period_end * 1000;
+              } else if (typeof subscription.current_period_end === 'string') {
+                const parsed = parseInt(subscription.current_period_end, 10);
+                if (!isNaN(parsed)) {
+                  timestamp = parsed * 1000;
+                }
+              }
+              if (timestamp) {
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                  periodEndDate = date;
+                }
               }
             }
-            if (timestamp) {
-              const date = new Date(timestamp);
-              if (!isNaN(date.getTime())) {
-                periodEndDate = date;
+            console.log(`[STRIPE WEBHOOK] Updating user ${user.email} (id: ${user.id}) to plan: ${newPlan}, status: ${subscription.status}, periodEnd: ${periodEndDate}`);
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: subscription.id,
+                subscriptionStatus: subscription.status,
+                subscriptionPlan: newPlan,
+                subscriptionCurrentPeriodEnd: periodEndDate,
+              },
+            })
+            const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
+            console.log(`[STRIPE WEBHOOK] User after update:`, updatedUser);
+            if (event.type === "customer.subscription.updated" && oldPlan !== newPlan && newPlan !== "free") {
+              try {
+                const isUpgrade = isPlanUpgrade(oldPlan, newPlan)
+                if (isUpgrade) {
+                  await emailService.sendUpgradeEmails({
+                    userName: user.name || customer.name || "User",
+                    userEmail: user.email,
+                    oldPlan: oldPlan.toUpperCase(),
+                    newPlan: newPlan.toUpperCase()
+                  })
+                } else {
+                  await emailService.sendPlanChangeEmails({
+                    userName: user.name || customer.name || "User",
+                    userEmail: user.email,
+                    oldPlan: oldPlan.toUpperCase(),
+                    newPlan: newPlan.toUpperCase(),
+                    effectiveDate: new Date().toLocaleDateString()
+                  })
+                }
+              } catch (emailError) {
+                console.error("Failed to send plan change emails:", emailError)
               }
             }
+            console.log(`[STRIPE WEBHOOK] Updated subscription for user ${user.email} - new plan: ${newPlan}`)
+          } else {
+            // Always update status, but do not set plan or period end for incomplete subscriptions
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: subscription.id,
+                subscriptionStatus: subscription.status,
+              },
+            })
+            console.log(`[STRIPE WEBHOOK] Subscription not active for user ${user.email}, status: ${subscription.status}`);
           }
-
-          console.log(`[STRIPE WEBHOOK] Updating user ${user.email} (id: ${user.id}) to plan: ${newPlan}, status: ${subscription.status}, periodEnd: ${periodEndDate}`);
-
-          // Update user subscription
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              stripeCustomerId: customerId,
-              stripeSubscriptionId: subscription.id,
-              subscriptionStatus: subscription.status,
-              subscriptionPlan: newPlan,
-              subscriptionCurrentPeriodEnd: periodEndDate,
-            },
-          })
-
-          // Log after update
-          const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
-          console.log(`[STRIPE WEBHOOK] User after update:`, updatedUser);
-
-          // Send appropriate emails if plan changed
-          if (event.type === "customer.subscription.updated" && oldPlan !== newPlan && newPlan !== "free") {
-            try {
-              // Check if it's an upgrade or just a plan change
-              const isUpgrade = isPlanUpgrade(oldPlan, newPlan)
-              
-              if (isUpgrade) {
-                await emailService.sendUpgradeEmails({
-                  userName: user.name || customer.name || "User",
-                  userEmail: user.email,
-                  oldPlan: oldPlan.toUpperCase(),
-                  newPlan: newPlan.toUpperCase()
-                })
-              } else {
-                // Send plan change emails for downgrades or lateral changes
-                await emailService.sendPlanChangeEmails({
-                  userName: user.name || customer.name || "User",
-                  userEmail: user.email,
-                  oldPlan: oldPlan.toUpperCase(),
-                  newPlan: newPlan.toUpperCase(),
-                  effectiveDate: new Date().toLocaleDateString()
-                })
-              }
-            } catch (emailError) {
-              console.error("Failed to send plan change emails:", emailError)
-            }
-          }
-
-          console.log(`[STRIPE WEBHOOK] Updated subscription for user ${user.email} - new plan: ${newPlan}`)
         } else {
           console.warn(`[STRIPE WEBHOOK] No user found for customer email: ${customer.email}`);
         }
@@ -207,18 +207,26 @@ export async function POST(req: NextRequest) {
           if (user) {
             // Get the plan name from subscription
             const planName = subscription.items.data[0]?.price.lookup_key || "monthly"
-            
             // Safely convert timestamp to Date
             let periodEndDate: Date | null = null;
-            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-              const timestamp = subscription.current_period_end * 1000;
-              const date = new Date(timestamp);
-              if (!isNaN(date.getTime())) {
-                periodEndDate = date;
+            if (subscription.current_period_end) {
+              let timestamp: number | null = null;
+              if (typeof subscription.current_period_end === 'number') {
+                timestamp = subscription.current_period_end * 1000;
+              } else if (typeof subscription.current_period_end === 'string') {
+                const parsed = parseInt(subscription.current_period_end, 10);
+                if (!isNaN(parsed)) {
+                  timestamp = parsed * 1000;
+                }
+              }
+              if (timestamp) {
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                  periodEndDate = date;
+                }
               }
             }
-
-            // Update subscription status to active and ensure plan is set correctly
+            // Always update subscriptionCurrentPeriodEnd and status on payment success
             await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -229,13 +237,10 @@ export async function POST(req: NextRequest) {
                 subscriptionCurrentPeriodEnd: periodEndDate,
               },
             })
-
             // Send payment confirmation emails
             try {
-              const planName = subscription.items.data[0]?.price.lookup_key || "monthly"
               const amount = invoice.amount_paid || 0
               const currency = invoice.currency || "usd"
-              
               console.log(`📧 Sending recurring payment emails to user: ${user.email}`)
               console.log(`📋 Recurring payment email data:`, {
                 userName: user.name || customer.name || "User",
@@ -246,7 +251,6 @@ export async function POST(req: NextRequest) {
                 transactionId: invoice.payment_intent as string || invoice.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
-              
               await emailService.sendPaymentEmails({
                 userName: user.name || customer.name || "User",
                 userEmail: user.email,
@@ -256,7 +260,6 @@ export async function POST(req: NextRequest) {
                 transactionId: invoice.payment_intent as string || invoice.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
-              
               console.log(`✅ Recurring payment emails sent successfully to: ${user.email}`)
             } catch (emailError) {
               console.error("❌ Failed to send payment confirmation emails:", emailError)
@@ -291,30 +294,35 @@ export async function POST(req: NextRequest) {
         if (customerId && subscriptionId) {
           // Get customer details
           const customer = (await stripe.customers.retrieve(customerId)) as Stripe.Customer
-
           // Find user by email
           const user = await prisma.user.findUnique({
             where: { email: customer.email! },
           })
-
           if (user) {
             // Get subscription details
             const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-
             // Safely convert timestamp to Date
             let periodEndDate: Date | null = null;
-            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-              const timestamp = subscription.current_period_end * 1000;
-              const date = new Date(timestamp);
-              if (!isNaN(date.getTime())) {
-                periodEndDate = date;
+            if (subscription.current_period_end) {
+              let timestamp: number | null = null;
+              if (typeof subscription.current_period_end === 'number') {
+                timestamp = subscription.current_period_end * 1000;
+              } else if (typeof subscription.current_period_end === 'string') {
+                const parsed = parseInt(subscription.current_period_end, 10);
+                if (!isNaN(parsed)) {
+                  timestamp = parsed * 1000;
+                }
+              }
+              if (timestamp) {
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                  periodEndDate = date;
+                }
               }
             }
-
             const oldPlan = user.subscriptionPlan || "free"
             const newPlan = subscription.items.data[0]?.price.lookup_key || "monthly"
-
-            // Update user with subscription details
+            // Always update subscriptionCurrentPeriodEnd and status on checkout completion
             await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -325,12 +333,10 @@ export async function POST(req: NextRequest) {
                 subscriptionCurrentPeriodEnd: periodEndDate,
               },
             })
-
             // Send initial subscription/payment emails for new subscriptions
             try {
               const amount = session.amount_total || 0
               const currency = session.currency || "usd"
-              
               console.log(`📧 Sending payment confirmation emails to user: ${user.email}`)
               console.log(`📋 Email data:`, {
                 userName: user.name || customer.name || "User",
@@ -341,7 +347,6 @@ export async function POST(req: NextRequest) {
                 transactionId: session.payment_intent as string || session.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
-              
               await emailService.sendPaymentEmails({
                 userName: user.name || customer.name || "User",
                 userEmail: user.email,
@@ -351,13 +356,11 @@ export async function POST(req: NextRequest) {
                 transactionId: session.payment_intent as string || session.id,
                 billingPeriod: subscription.items.data[0]?.price.recurring?.interval === "year" ? "Yearly" : "Monthly"
               })
-              
               console.log(`✅ Payment emails sent successfully to: ${user.email}`)
             } catch (emailError) {
               console.error("❌ Failed to send checkout completion emails:", emailError)
               console.error("📧 Email error details:", emailError)
             }
-
             console.log(`Checkout completed for user ${user.email}`)
           }
         }
