@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    console.log("[STRIPE WEBHOOK] Received event:", event.type, JSON.stringify(event.data.object, null, 2));
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
             }
           }
 
+          console.log(`[STRIPE WEBHOOK] Updating user ${user.email} (id: ${user.id}) to plan: ${newPlan}, status: ${subscription.status}, periodEnd: ${periodEndDate}`);
+
           // Update user subscription
           await prisma.user.update({
             where: { id: user.id },
@@ -90,6 +93,10 @@ export async function POST(req: NextRequest) {
               subscriptionCurrentPeriodEnd: periodEndDate,
             },
           })
+
+          // Log after update
+          const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
+          console.log(`[STRIPE WEBHOOK] User after update:`, updatedUser);
 
           // Send appropriate emails if plan changed
           if (event.type === "customer.subscription.updated" && oldPlan !== newPlan && newPlan !== "free") {
@@ -119,7 +126,9 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          console.log(`Updated subscription for user ${user.email} - new plan: ${newPlan}`)
+          console.log(`[STRIPE WEBHOOK] Updated subscription for user ${user.email} - new plan: ${newPlan}`)
+        } else {
+          console.warn(`[STRIPE WEBHOOK] No user found for customer email: ${customer.email}`);
         }
         break
       }
