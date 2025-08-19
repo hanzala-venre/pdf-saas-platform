@@ -189,7 +189,13 @@ export async function POST(req: NextRequest) {
           // Only update if subscription is active
           if (subscription.status === "active") {
             const oldPlan = user.subscriptionPlan || "free"
-            const newPlan = subscription.items.data[0]?.price.lookup_key || "free"
+            let newPlan = subscription.items.data[0]?.price.lookup_key;
+            const interval = subscription.items.data[0]?.price.recurring?.interval;
+            if (!newPlan || (interval === "year" && newPlan !== "yearly") || (interval === "month" && newPlan !== "monthly")) {
+              if (interval === "year") newPlan = "yearly";
+              else if (interval === "month") newPlan = "monthly";
+              else newPlan = "monthly";
+            }
             // Safely convert timestamp to Date
             let periodEndDate: Date | null = null;
             if (subscription.current_period_end) {
@@ -202,7 +208,7 @@ export async function POST(req: NextRequest) {
                   timestamp = parsed * 1000;
                 }
               }
-              if (timestamp) {
+              if (timestamp && timestamp > 0) {
                 const date = new Date(timestamp);
                 if (!isNaN(date.getTime())) {
                   periodEndDate = date;
