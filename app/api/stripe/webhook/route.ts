@@ -72,11 +72,22 @@ export async function POST(req: NextRequest) {
 
           // Safely convert timestamp to Date
           let periodEndDate: Date | null = null;
-          if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-            const timestamp = subscription.current_period_end * 1000;
-            const date = new Date(timestamp);
-            if (!isNaN(date.getTime())) {
-              periodEndDate = date;
+          if (subscription.current_period_end) {
+            let timestamp: number | null = null;
+            if (typeof subscription.current_period_end === 'number') {
+              timestamp = subscription.current_period_end * 1000;
+            } else if (typeof subscription.current_period_end === 'string') {
+              // Some Stripe APIs may return as string
+              const parsed = parseInt(subscription.current_period_end, 10);
+              if (!isNaN(parsed)) {
+                timestamp = parsed * 1000;
+              }
+            }
+            if (timestamp) {
+              const date = new Date(timestamp);
+              if (!isNaN(date.getTime())) {
+                periodEndDate = date;
+              }
             }
           }
 

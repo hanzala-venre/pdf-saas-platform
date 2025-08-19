@@ -9,15 +9,17 @@ import { Analytics } from "@/components/analytics"
 import { Suspense } from "react"
 import logoImage from "@/assets/logo.png"
 import faviconImage from "@/assets/favicon.ico"
+import ogImage from "@/assets/opengraph-image.png"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
     default: "QuikPDF Pro - Professional PDF Processing & Editing Tools",
-    template: "%s | QuikPDF Pro"
+    template: "%s | QuikPDF Pro",
   },
-  description: "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs with our advanced online platform. Fast, secure, and reliable PDF processing for businesses and individuals.",
+  description:
+    "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs with our advanced online platform. Fast, secure, and reliable PDF processing for businesses and individuals.",
   keywords: [
     "PDF tools",
     "PDF editor",
@@ -33,7 +35,7 @@ export const metadata: Metadata = {
     "professional PDF processing",
     "document management",
     "PDF manipulation",
-    "secure PDF tools"
+    "secure PDF tools",
   ],
   authors: [{ name: "QuikPDF Pro Team" }],
   creator: "QuikPDF Pro",
@@ -55,24 +57,26 @@ export const metadata: Metadata = {
     url: "https://quikpdfpro.com",
     siteName: "QuikPDF Pro",
     title: "QuikPDF Pro - Professional PDF Processing & Editing Tools",
-    description: "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs with our advanced online platform.",
+    description:
+      "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs with our advanced online platform.",
     images: [
-     
       {
-        url: logoImage.src,
-        width: 800,
-        height: 600,
-        alt: "QuikPDF Pro Logo",
+        url: ogImage.src,
+        width: 1200,
+        height: 630,
+        alt: "QuikPDF Pro OG Image",
       },
     ],
   },
+  
   twitter: {
     card: "summary_large_image",
     site: "@quikpdfpro",
     creator: "@quikpdfpro",
     title: "QuikPDF Pro - Professional PDF Processing & Editing Tools",
-    description: "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs online.",
-    images: [logoImage.src],
+    description:
+      "Transform your PDFs with professional-grade tools. Merge, split, compress, convert, and edit PDFs online.",
+    images: [ogImage.src],
   },
   alternates: {
     canonical: "https://quikpdfpro.com",
@@ -97,7 +101,7 @@ export const metadata: Metadata = {
     "msapplication-TileColor": "#2563eb",
     "theme-color": "#2563eb",
   },
-}
+};
 
 export default function RootLayout({
   children,
