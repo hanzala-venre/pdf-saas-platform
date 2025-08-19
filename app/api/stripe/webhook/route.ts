@@ -206,7 +206,14 @@ export async function POST(req: NextRequest) {
 
           if (user) {
             // Get the plan name from subscription
-            const planName = subscription.items.data[0]?.price.lookup_key || "monthly"
+            let planName = subscription.items.data[0]?.price.lookup_key
+            if (!planName) {
+              // Fallback: use interval as plan name if lookup_key is missing
+              const interval = subscription.items.data[0]?.price.recurring?.interval
+              if (interval === "year") planName = "yearly"
+              else if (interval === "month") planName = "monthly"
+              else planName = "monthly"
+            }
             // Safely convert timestamp to Date
             let periodEndDate: Date | null = null;
             if (subscription.current_period_end) {
@@ -219,7 +226,7 @@ export async function POST(req: NextRequest) {
                   timestamp = parsed * 1000;
                 }
               }
-              if (timestamp) {
+              if (timestamp && timestamp > 0) {
                 const date = new Date(timestamp);
                 if (!isNaN(date.getTime())) {
                   periodEndDate = date;
@@ -321,7 +328,13 @@ export async function POST(req: NextRequest) {
               }
             }
             const oldPlan = user.subscriptionPlan || "free"
-            const newPlan = subscription.items.data[0]?.price.lookup_key || "monthly"
+            let newPlan = subscription.items.data[0]?.price.lookup_key
+            if (!newPlan) {
+              const interval = subscription.items.data[0]?.price.recurring?.interval
+              if (interval === "year") newPlan = "yearly"
+              else if (interval === "month") newPlan = "monthly"
+              else newPlan = "monthly"
+            }
             // Always update subscriptionCurrentPeriodEnd and status on checkout completion
             await prisma.user.update({
               where: { id: user.id },
