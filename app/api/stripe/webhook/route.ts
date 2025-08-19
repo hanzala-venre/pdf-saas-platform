@@ -1,3 +1,4 @@
+
 import { headers } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
@@ -51,7 +52,126 @@ export async function POST(req: NextRequest) {
 
   try {
     console.log("[STRIPE WEBHOOK] Received event:", event.type, JSON.stringify(event.data.object, null, 2));
+    // TypeScript does not recognize non-standard events, so use a type-safe workaround
+    if ((event as any).type === "invoice_payment.paid") {
+      // Non-standard event, but handle just in case
+      const invoice = (event as any).data.object;
+      const subscriptionId = invoice.subscription as string;
+      const customerId = invoice.customer as string;
+      if (subscriptionId && customerId) {
+        // Get customer and subscription details
+        const [customer, subscription] = await Promise.all([
+          stripe.customers.retrieve(customerId) as Promise<Stripe.Customer>,
+          stripe.subscriptions.retrieve(subscriptionId)
+        ]);
+        // Find user by email
+        const user = await prisma.user.findUnique({
+          where: { email: customer.email! },
+        });
+        if (user) {
+          // Get the plan name from subscription
+          let planName = subscription.items.data[0]?.price.lookup_key;
+          if (!planName) {
+            const interval = subscription.items.data[0]?.price.recurring?.interval;
+            if (interval === "year") planName = "yearly";
+            else if (interval === "month") planName = "monthly";
+            else planName = "monthly";
+          }
+          // Safely convert timestamp to Date
+          let periodEndDate: Date | null = null;
+          if (subscription.current_period_end) {
+            let timestamp: number | null = null;
+            if (typeof subscription.current_period_end === 'number') {
+              timestamp = subscription.current_period_end * 1000;
+            } else if (typeof subscription.current_period_end === 'string') {
+              const parsed = parseInt(subscription.current_period_end, 10);
+              if (!isNaN(parsed)) {
+                timestamp = parsed * 1000;
+              }
+            }
+            if (timestamp && timestamp > 0) {
+              const date = new Date(timestamp);
+              if (!isNaN(date.getTime())) {
+                periodEndDate = date;
+              }
+            }
+          }
+          // Update user in DB
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              subscriptionStatus: "active",
+              subscriptionPlan: planName,
+              stripeCustomerId: customerId,
+              stripeSubscriptionId: subscriptionId,
+              subscriptionCurrentPeriodEnd: periodEndDate,
+            },
+          });
+          console.log(`[STRIPE WEBHOOK] [invoice_payment.paid] Updated user ${user.email} to plan: ${planName}, periodEnd: ${periodEndDate}`);
+        }
+      }
+      return NextResponse.json({ received: true });
+    }
     switch (event.type) {
+      case "invoice_payment.paid": {
+        // Non-standard event, but handle just in case
+        const invoice = event.data.object as any;
+        const subscriptionId = invoice.subscription as string;
+        const customerId = invoice.customer as string;
+        if (subscriptionId && customerId) {
+          // Get customer and subscription details
+          const [customer, subscription] = await Promise.all([
+            stripe.customers.retrieve(customerId) as Promise<Stripe.Customer>,
+            stripe.subscriptions.retrieve(subscriptionId)
+          ]);
+          // Find user by email
+          const user = await prisma.user.findUnique({
+            where: { email: customer.email! },
+          });
+          if (user) {
+            // Get the plan name from subscription
+            let planName = subscription.items.data[0]?.price.lookup_key;
+            if (!planName) {
+              const interval = subscription.items.data[0]?.price.recurring?.interval;
+              if (interval === "year") planName = "yearly";
+              else if (interval === "month") planName = "monthly";
+              else planName = "monthly";
+            }
+            // Safely convert timestamp to Date
+            let periodEndDate: Date | null = null;
+            if (subscription.current_period_end) {
+              let timestamp: number | null = null;
+              if (typeof subscription.current_period_end === 'number') {
+                timestamp = subscription.current_period_end * 1000;
+              } else if (typeof subscription.current_period_end === 'string') {
+                const parsed = parseInt(subscription.current_period_end, 10);
+                if (!isNaN(parsed)) {
+                  timestamp = parsed * 1000;
+                }
+              }
+              if (timestamp && timestamp > 0) {
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                  periodEndDate = date;
+                }
+              }
+            }
+            // Update user in DB
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                subscriptionStatus: "active",
+                subscriptionPlan: planName,
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: subscriptionId,
+                subscriptionCurrentPeriodEnd: periodEndDate,
+              },
+            });
+            console.log(`[STRIPE WEBHOOK] [invoice_payment.paid] Updated user ${user.email} to plan: ${planName}, periodEnd: ${periodEndDate}`);
+          }
+        }
+        break;
+      }
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription

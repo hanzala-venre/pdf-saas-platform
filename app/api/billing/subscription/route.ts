@@ -74,9 +74,59 @@ export async function GET() {
 
     // Determine if subscription should be cancelled at period end
     const now = new Date()
-    const periodEnd = user.subscriptionCurrentPeriodEnd
+    let periodEnd = user.subscriptionCurrentPeriodEnd
+    let effectiveStatus = user.subscriptionStatus
+    let effectivePlan = user.subscriptionPlan
+    // If user is active but periodEnd is null, fetch from Stripe and update DB
+    if (user.stripeSubscriptionId && user.subscriptionStatus === "active" && !periodEnd) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId)
+        if (subscription.current_period_end) {
+          let timestamp: number | null = null;
+          if (typeof subscription.current_period_end === 'number') {
+            timestamp = subscription.current_period_end * 1000;
+          } else if (typeof subscription.current_period_end === 'string') {
+            const parsed = parseInt(subscription.current_period_end, 10);
+            if (!isNaN(parsed)) {
+              timestamp = parsed * 1000;
+            }
+          }
+          if (timestamp && timestamp > 0) {
+            const date = new Date(timestamp);
+            if (!isNaN(date.getTime())) {
+              periodEnd = date;
+              // Also update DB for consistency
+              await prisma.user.update({
+                where: { email: session.user.email },
+                data: { subscriptionCurrentPeriodEnd: date },
+              });
+            }
+          }
+        }
+        // Also update plan if needed
+        let plan = subscription.items.data[0]?.price.lookup_key;
+        const interval = subscription.items.data[0]?.price.recurring?.interval;
+        if (!plan || (interval === "year" && plan !== "yearly") || (interval === "month" && plan !== "monthly")) {
+          if (interval === "year") plan = "yearly";
+          else if (interval === "month") plan = "monthly";
+          else plan = "monthly";
+        }
+        if (plan !== user.subscriptionPlan) {
+          effectivePlan = plan;
+          await prisma.user.update({
+            where: { email: session.user.email },
+            data: { subscriptionPlan: plan },
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching Stripe subscription for period end:", error)
+      }
+    }
     const isExpired = periodEnd && now > periodEnd
-    
+    if (isExpired) {
+      effectiveStatus = "inactive"
+      effectivePlan = "free"
+    }
     // Check if subscription is set to cancel at period end (if we have Stripe subscription)
     let cancelAtPeriodEnd = false
     if (user.stripeSubscriptionId) {
@@ -91,21 +141,15 @@ export async function GET() {
     } else {
       cancelAtPeriodEnd = user.subscriptionStatus === "canceled" && !isExpired
     }
-    
-    // If subscription is expired, it should show as inactive
-    const effectiveStatus = isExpired ? "inactive" : user.subscriptionStatus
-    const effectivePlan = isExpired ? "free" : user.subscriptionPlan
-
     const subscriptionData = {
       plan: effectivePlan,
       status: effectiveStatus,
-      currentPeriodEnd: user.subscriptionCurrentPeriodEnd?.toISOString() || null,
+      currentPeriodEnd: periodEnd?.toISOString() || null,
       cancelAtPeriodEnd,
       stripeCustomerId: user.stripeCustomerId,
       stripeSubscriptionId: user.stripeSubscriptionId,
       isAdmin,
     }
-
     return NextResponse.json(subscriptionData)
   } catch (error) {
     console.error("Error fetching subscription:", error)
