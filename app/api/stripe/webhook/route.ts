@@ -30,7 +30,7 @@ function isPlanUpgrade(oldPlan: string, newPlan: string): boolean {
     pro: 3,
     premium: 4,
     enterprise: 5,
-    yearly: 6, // Yearly should be higher than monthly
+    yearly: 6, // Keep yearly separate, not necessarily "higher"
   };
 
   const oldValue = planHierarchy[oldPlan.toLowerCase()] || 0;
@@ -53,104 +53,161 @@ function convertTimestampToDate(timestamp: any): Date | null {
     }
 
     if (unixTimestamp && unixTimestamp > 0) {
-      // Stripe timestamps are in seconds, convert to milliseconds
       const date = new Date(unixTimestamp * 1000);
       if (!isNaN(date.getTime())) {
         console.log(
-          `[TIMESTAMP] Converting ${unixTimestamp} to ${date.toISOString()}`
+          `[WEBHOOK] Converting timestamp ${unixTimestamp} to ${date.toISOString()}`
         );
         return date;
       }
     }
 
-    console.log(`[TIMESTAMP] Failed to convert timestamp: ${timestamp}`);
+    console.log(`[WEBHOOK] Failed to convert timestamp: ${timestamp}`);
     return null;
   } catch (error) {
-    console.error("Error converting timestamp:", error);
+    console.error("[WEBHOOK] Error converting timestamp:", error);
     return null;
   }
 }
 
-// Helper function to determine plan name from subscription
+// CRITICAL: Helper function to get plan name from subscription - EXACT MATCH ONLY
 function getPlanNameFromSubscription(
   subscription: Stripe.Subscription
 ): string {
-  // Find the active price item (quantity > 0, not canceled)
-  const priceItem = subscription.items.data.find(
-    (item) => (typeof item.quantity === 'number' && item.quantity > 0) && (Boolean(item.deleted) === false)
-  ) || subscription.items.data[0];
-  if (!priceItem) return "monthly"; // fallback
-
-  // First try to get from lookup_key
-  if (priceItem.price.lookup_key) {
-    return priceItem.price.lookup_key;
+  const priceItem = subscription.items.data[0];
+  if (!priceItem) {
+    console.error("[WEBHOOK] No price item found in subscription");
+    return "monthly"; // Safe fallback
   }
 
-  // Fallback to interval-based naming
+  console.log(`[WEBHOOK] Price lookup_key: ${priceItem.price.lookup_key}`);
+  console.log(
+    `[WEBHOOK] Price interval: ${priceItem.price.recurring?.interval}`
+  );
+  console.log(`[WEBHOOK] Price ID: ${priceItem.price.id}`);
+
+  // CRITICAL: First try to get from lookup_key - this should be exact
+  if (priceItem.price.lookup_key) {
+    const lookupKey = priceItem.price.lookup_key.toLowerCase();
+    console.log(`[WEBHOOK] Using lookup_key: ${lookupKey}`);
+    return lookupKey;
+  }
+
+  // CRITICAL: Fallback to interval-based naming ONLY if lookup_key is missing
   const interval = priceItem.price.recurring?.interval;
+  console.log(`[WEBHOOK] Fallback to interval: ${interval}`);
+
   if (interval === "year") {
     return "yearly";
   } else if (interval === "month") {
     return "monthly";
   }
 
-  // Final fallback
+  // Final safe fallback
+  console.warn("[WEBHOOK] Using final fallback: monthly");
   return "monthly";
 }
 
-// Helper function to update user subscription
+// Process queue to handle race conditions
+const processingQueue = new Map<string, boolean>();
+
+// Helper function to update user subscription with race condition protection
 async function updateUserSubscription(
   user: any,
   customerId: string,
   subscription: Stripe.Subscription,
   eventType: string
 ) {
-  const planName = getPlanNameFromSubscription(subscription);
-  const periodEndDate = convertTimestampToDate(subscription.current_period_end);
+  const queueKey = `${user.id}-${subscription.id}`;
 
-  console.log(
-    `[STRIPE WEBHOOK] [${eventType}] Processing subscription for user ${user.email}`
-  );
-  console.log(
-    `[STRIPE WEBHOOK] Plan: ${planName}, Status: ${subscription.status}`
-  );
-  console.log(
-    `[STRIPE WEBHOOK] Period End Raw: ${subscription.current_period_end}, Converted: ${periodEndDate}`
-  );
-
-  // Prepare update data
-  const updateData: any = {
-    stripeCustomerId: customerId,
-    stripeSubscriptionId: subscription.id,
-    subscriptionStatus: subscription.status,
-  };
-
-  // Always update plan and period end for active subscriptions
-  if (subscription.status === "active") {
-    updateData.subscriptionPlan = planName;
-    updateData.subscriptionCurrentPeriodEnd = periodEndDate;
-  } else if (subscription.status === "incomplete") {
-    // For incomplete subscriptions, don't update plan or period end
+  // Prevent race conditions
+  if (processingQueue.get(queueKey)) {
     console.log(
-      `[STRIPE WEBHOOK] [${eventType}] Subscription incomplete, not updating plan or period`
+      `[WEBHOOK] [${eventType}] Skipping - already processing subscription for user ${user.email}`
     );
+    return {
+      planName: user.subscriptionPlan,
+      periodEndDate: null,
+      shouldSetActive: false,
+    };
   }
 
-  // Use upsert to handle race conditions
-  await prisma.user.update({
-    where: { id: user.id },
-    data: updateData,
-  });
+  processingQueue.set(queueKey, true);
 
-  console.log(
-    `[STRIPE WEBHOOK] [${eventType}] Updated user ${user.email} - Plan: ${planName}, Status: ${subscription.status}, Period: ${periodEndDate}`
-  );
+  try {
+    const planName = getPlanNameFromSubscription(subscription);
+    const periodEndDate = convertTimestampToDate(
+      subscription.current_period_end
+    );
 
-  return {
-    planName,
-    periodEndDate,
-    shouldSetActive: subscription.status === "active",
-  };
+    console.log(
+      `[WEBHOOK] [${eventType}] Processing subscription for user ${user.email}`
+    );
+    console.log(
+      `[WEBHOOK] [${eventType}] Current DB plan: ${user.subscriptionPlan}`
+    );
+    console.log(`[WEBHOOK] [${eventType}] Stripe plan: ${planName}`);
+    console.log(
+      `[WEBHOOK] [${eventType}] Stripe status: ${subscription.status}`
+    );
+    console.log(`[WEBHOOK] [${eventType}] Period End: ${periodEndDate}`);
+
+    // CRITICAL: Only update if subscription is truly active AND we have valid data
+    const shouldUpdate =
+      subscription.status === "active" && planName && periodEndDate;
+
+    if (shouldUpdate) {
+      // CRITICAL: Check if plan change is unexpected
+      if (user.subscriptionPlan && user.subscriptionPlan !== planName) {
+        console.error(`[WEBHOOK] [${eventType}] ⚠️  PLAN MISMATCH DETECTED!`);
+        console.error(
+          `[WEBHOOK] [${eventType}] DB has: ${user.subscriptionPlan}, Stripe has: ${planName}`
+        );
+        console.error(
+          `[WEBHOOK] [${eventType}] This might be an unwanted upgrade!`
+        );
+
+        // Log the full subscription for investigation
+        console.error(
+          `[WEBHOOK] [${eventType}] Full subscription:`,
+          JSON.stringify(subscription, null, 2)
+        );
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus: subscription.status,
+          subscriptionPlan: planName,
+          subscriptionCurrentPeriodEnd: periodEndDate,
+        },
+      });
+
+      console.log(
+        `[WEBHOOK] [${eventType}] ✅ Updated user ${user.email} - Plan: ${planName}, Status: ${subscription.status}`
+      );
+    } else {
+      // For incomplete subscriptions, only update connection details
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus: subscription.status,
+        },
+      });
+
+      console.log(
+        `[WEBHOOK] [${eventType}] ⚠️  Partial update - Status: ${subscription.status}, not updating plan/period`
+      );
+    }
+
+    return { planName, periodEndDate, shouldSetActive: shouldUpdate };
+  } finally {
+    processingQueue.delete(queueKey);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -163,7 +220,7 @@ export async function POST(req: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
-    console.error(`Webhook signature verification failed.`, err.message);
+    console.error(`[WEBHOOK] Signature verification failed:`, err.message);
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
       { status: 400 }
@@ -171,27 +228,76 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    console.log("[STRIPE WEBHOOK] Received event:", event.type);
+    console.log(`[WEBHOOK] 📨 Received event: ${event.type} (${event.id})`);
+
+    // CRITICAL: Log all subscription-related events for debugging
+    if (
+      event.type.includes("subscription") ||
+      event.type.includes("checkout") ||
+      event.type.includes("invoice")
+    ) {
+      console.log(
+        `[WEBHOOK] 🔍 Event data:`,
+        JSON.stringify(event.data.object, null, 2)
+      );
+    }
 
     switch (event.type) {
-      case "customer.subscription.created":
-      case "customer.subscription.updated": {
+      case "customer.subscription.created": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        // Get customer details
+        console.log(
+          `[WEBHOOK] [subscription.created] Subscription ID: ${subscription.id}`
+        );
+        console.log(
+          `[WEBHOOK] [subscription.created] Status: ${subscription.status}`
+        );
+
         const customer = (await stripe.customers.retrieve(
           customerId
         )) as Stripe.Customer;
-
-        // Find user by email
         const user = await prisma.user.findUnique({
           where: { email: customer.email! },
         });
 
         if (!user) {
           console.warn(
-            `[STRIPE WEBHOOK] No user found for customer email: ${customer.email}`
+            `[WEBHOOK] [subscription.created] No user found for email: ${customer.email}`
+          );
+          break;
+        }
+
+        await updateUserSubscription(
+          user,
+          customerId,
+          subscription,
+          "subscription.created"
+        );
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+
+        console.log(
+          `[WEBHOOK] [subscription.updated] Subscription ID: ${subscription.id}`
+        );
+        console.log(
+          `[WEBHOOK] [subscription.updated] Status: ${subscription.status}`
+        );
+
+        const customer = (await stripe.customers.retrieve(
+          customerId
+        )) as Stripe.Customer;
+        const user = await prisma.user.findUnique({
+          where: { email: customer.email! },
+        });
+
+        if (!user) {
+          console.warn(
+            `[WEBHOOK] [subscription.updated] No user found for email: ${customer.email}`
           );
           break;
         }
@@ -201,18 +307,22 @@ export async function POST(req: NextRequest) {
           user,
           customerId,
           subscription,
-          event.type
+          "subscription.updated"
         );
 
-        // Send emails only for subscription updates (not creation) and when plan changes
-        if (
-          event.type === "customer.subscription.updated" &&
-          oldPlan !== planName &&
-          shouldSetActive
-        ) {
+        // CRITICAL: Alert on plan changes that might be unwanted
+        if (shouldSetActive && oldPlan !== planName && oldPlan !== "free") {
+          console.error(
+            `[WEBHOOK] [subscription.updated] 🚨 PLAN CHANGED: ${oldPlan} → ${planName}`
+          );
+          console.error(`[WEBHOOK] [subscription.updated] User: ${user.email}`);
+          console.error(
+            `[WEBHOOK] [subscription.updated] This might be an automatic upgrade!`
+          );
+
+          // Send email notifications for plan changes
           try {
             const isUpgrade = isPlanUpgrade(oldPlan, planName);
-
             if (isUpgrade) {
               await emailService.sendUpgradeEmails({
                 userName: user.name || customer.name || "User",
@@ -230,7 +340,10 @@ export async function POST(req: NextRequest) {
               });
             }
           } catch (emailError) {
-            console.error("Failed to send plan change emails:", emailError);
+            console.error(
+              "[WEBHOOK] Failed to send plan change emails:",
+              emailError
+            );
           }
         }
 
@@ -241,17 +354,17 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        // Get customer details
+        console.log(
+          `[WEBHOOK] [subscription.deleted] Subscription ID: ${subscription.id}`
+        );
+
         const customer = (await stripe.customers.retrieve(
           customerId
         )) as Stripe.Customer;
-
-        // Find user by email
         const user = await prisma.user.findUnique({
           where: { email: customer.email! },
         });
 
-        // Update user to free plan
         await prisma.user.updateMany({
           where: { stripeSubscriptionId: subscription.id },
           data: {
@@ -262,7 +375,6 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Send cancellation emails
         if (user) {
           try {
             const planName = getPlanNameFromSubscription(subscription);
@@ -278,125 +390,18 @@ export async function POST(req: NextRequest) {
               subscriptionId: subscription.id,
             });
           } catch (emailError) {
-            console.error("Failed to send cancellation emails:", emailError);
+            console.error(
+              "[WEBHOOK] Failed to send cancellation emails:",
+              emailError
+            );
           }
         }
 
         console.log(
-          `[STRIPE WEBHOOK] Subscription canceled for user: ${
+          `[WEBHOOK] [subscription.deleted] ✅ Subscription canceled for user: ${
             user?.email || "unknown"
           }`
         );
-        break;
-      }
-
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
-        const customerId = invoice.customer as string;
-
-        console.log(`[STRIPE WEBHOOK] Processing invoice.payment_succeeded`);
-        console.log(
-          `[STRIPE WEBHOOK] Subscription ID: ${subscriptionId}, Customer ID: ${customerId}`
-        );
-
-        if (!subscriptionId || !customerId) {
-          console.log(
-            "[STRIPE WEBHOOK] Skipping invoice.payment_succeeded - missing subscription or customer"
-          );
-          break;
-        }
-
-        // Get customer and subscription details
-        const [customer, subscription] = await Promise.all([
-          stripe.customers.retrieve(customerId) as Promise<Stripe.Customer>,
-          stripe.subscriptions.retrieve(subscriptionId),
-        ]);
-
-        // Find user by email
-        const user = await prisma.user.findUnique({
-          where: { email: customer.email! },
-        });
-
-        if (!user) {
-          console.warn(
-            `[STRIPE WEBHOOK] No user found for customer email: ${customer.email}`
-          );
-          break;
-        }
-
-        // For payment succeeded, always update plan and period end regardless of current status
-        const planName = getPlanNameFromSubscription(subscription);
-        const periodEndDate = convertTimestampToDate(
-          subscription.current_period_end
-        );
-
-        console.log(
-          `[STRIPE WEBHOOK] [invoice.payment_succeeded] Updating user with plan: ${planName}, period: ${periodEndDate}`
-        );
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId,
-            subscriptionStatus: "active", // Payment succeeded means active
-            subscriptionPlan: planName,
-            subscriptionCurrentPeriodEnd: periodEndDate,
-          },
-        });
-
-        // Send payment confirmation emails
-        try {
-          const amount = invoice.amount_paid || 0;
-          const currency = invoice.currency || "usd";
-          const billingPeriod =
-            subscription.items.data[0]?.price.recurring?.interval === "year"
-              ? "Yearly"
-              : "Monthly";
-
-          console.log(
-            `📧 Sending payment confirmation emails to user: ${user.email}`
-          );
-
-          await emailService.sendPaymentEmails({
-            userName: user.name || customer.name || "User",
-            userEmail: user.email,
-            planName: planName.toUpperCase(),
-            amount: amount,
-            currency: currency,
-            transactionId: (invoice.payment_intent as string) || invoice.id,
-            billingPeriod: billingPeriod,
-          });
-
-          console.log(`✅ Payment emails sent successfully to: ${user.email}`);
-        } catch (emailError) {
-          console.error(
-            "❌ Failed to send payment confirmation emails:",
-            emailError
-          );
-        }
-
-        break;
-      }
-
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
-
-        if (subscriptionId) {
-          // Update subscription status to past_due
-          await prisma.user.updateMany({
-            where: { stripeSubscriptionId: subscriptionId },
-            data: {
-              subscriptionStatus: "past_due",
-            },
-          });
-
-          console.log(
-            `[STRIPE WEBHOOK] Payment failed for subscription: ${subscriptionId}`
-          );
-        }
         break;
       }
 
@@ -405,44 +410,43 @@ export async function POST(req: NextRequest) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
+        console.log(`[WEBHOOK] [checkout.completed] Session ID: ${session.id}`);
+        console.log(
+          `[WEBHOOK] [checkout.completed] Customer: ${customerId}, Subscription: ${subscriptionId}`
+        );
+
         if (!customerId || !subscriptionId) {
           console.log(
-            "[STRIPE WEBHOOK] Skipping checkout.session.completed - missing customer or subscription"
+            "[WEBHOOK] [checkout.completed] Missing customer or subscription, skipping"
           );
           break;
         }
 
-        // Get customer details
         const customer = (await stripe.customers.retrieve(
           customerId
         )) as Stripe.Customer;
-
-        // Find user by email
         const user = await prisma.user.findUnique({
           where: { email: customer.email! },
         });
 
         if (!user) {
           console.warn(
-            `[STRIPE WEBHOOK] No user found for customer email: ${customer.email}`
+            `[WEBHOOK] [checkout.completed] No user found for email: ${customer.email}`
           );
           break;
         }
 
-        // Get subscription details
         const subscription = await stripe.subscriptions.retrieve(
           subscriptionId
         );
-
-        // Update user subscription
         const { planName } = await updateUserSubscription(
           user,
           customerId,
           subscription,
-          "checkout.session.completed"
+          "checkout.completed"
         );
 
-        // Send initial subscription emails only for new subscriptions
+        // Send initial subscription emails
         try {
           const amount = session.amount_total || 0;
           const currency = session.currency || "usd";
@@ -452,7 +456,7 @@ export async function POST(req: NextRequest) {
               : "Monthly";
 
           console.log(
-            `📧 Sending checkout completion emails to user: ${user.email}`
+            `[WEBHOOK] [checkout.completed] 📧 Sending emails for ${planName} plan`
           );
 
           await emailService.sendPaymentEmails({
@@ -465,27 +469,117 @@ export async function POST(req: NextRequest) {
             billingPeriod: billingPeriod,
           });
 
-          console.log(`✅ Checkout emails sent successfully to: ${user.email}`);
+          console.log(
+            `[WEBHOOK] [checkout.completed] ✅ Emails sent to: ${user.email}`
+          );
         } catch (emailError) {
           console.error(
-            "❌ Failed to send checkout completion emails:",
+            "[WEBHOOK] Failed to send checkout completion emails:",
             emailError
           );
         }
 
         console.log(
-          `[STRIPE WEBHOOK] Checkout completed for user ${user.email}`
+          `[WEBHOOK] [checkout.completed] ✅ Completed for user ${user.email}, plan: ${planName}`
         );
         break;
       }
 
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
+        const customerId = invoice.customer as string;
+
+        console.log(`[WEBHOOK] [payment.succeeded] Invoice: ${invoice.id}`);
+        console.log(
+          `[WEBHOOK] [payment.succeeded] Subscription: ${subscriptionId}, Customer: ${customerId}`
+        );
+
+        if (!subscriptionId || !customerId) {
+          console.log(
+            "[WEBHOOK] [payment.succeeded] Missing subscription or customer, skipping"
+          );
+          break;
+        }
+
+        const [customer, subscription] = await Promise.all([
+          stripe.customers.retrieve(customerId) as Promise<Stripe.Customer>,
+          stripe.subscriptions.retrieve(subscriptionId),
+        ]);
+
+        const user = await prisma.user.findUnique({
+          where: { email: customer.email! },
+        });
+
+        if (!user) {
+          console.warn(
+            `[WEBHOOK] [payment.succeeded] No user found for email: ${customer.email}`
+          );
+          break;
+        }
+
+        // For recurring payments, ensure we maintain the correct plan
+        const { planName } = await updateUserSubscription(
+          user,
+          customerId,
+          subscription,
+          "payment.succeeded"
+        );
+
+        try {
+          const amount = invoice.amount_paid || 0;
+          const currency = invoice.currency || "usd";
+          const billingPeriod =
+            subscription.items.data[0]?.price.recurring?.interval === "year"
+              ? "Yearly"
+              : "Monthly";
+
+          await emailService.sendPaymentEmails({
+            userName: user.name || customer.name || "User",
+            userEmail: user.email,
+            planName: planName.toUpperCase(),
+            amount: amount,
+            currency: currency,
+            transactionId: (invoice.payment_intent as string) || invoice.id,
+            billingPeriod: billingPeriod,
+          });
+
+          console.log(
+            `[WEBHOOK] [payment.succeeded] ✅ Payment emails sent to: ${user.email}`
+          );
+        } catch (emailError) {
+          console.error(
+            "[WEBHOOK] Failed to send payment confirmation emails:",
+            emailError
+          );
+        }
+
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
+
+        if (subscriptionId) {
+          await prisma.user.updateMany({
+            where: { stripeSubscriptionId: subscriptionId },
+            data: { subscriptionStatus: "past_due" },
+          });
+          console.log(
+            `[WEBHOOK] [payment.failed] ⚠️  Set to past_due: ${subscriptionId}`
+          );
+        }
+        break;
+      }
+
       default:
-        console.log(`[STRIPE WEBHOOK] Unhandled event type ${event.type}`);
+        console.log(`[WEBHOOK] 🤷 Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Error processing webhook:", error);
+    console.error("[WEBHOOK] ❌ Error processing webhook:", error);
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
