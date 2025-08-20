@@ -13,7 +13,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 function getPlanNameFromSubscription(
   subscription: Stripe.Subscription
 ): string {
-  const priceItem = subscription.items.data[0];
+  // Find the active price item (quantity > 0, not canceled)
+  const priceItem = subscription.items.data.find(
+    (item) => (typeof item.quantity === 'number' && item.quantity > 0) && (Boolean(item.deleted) === false)
+  ) || subscription.items.data[0];
   if (!priceItem) return "monthly";
 
   // First try to get from lookup_key

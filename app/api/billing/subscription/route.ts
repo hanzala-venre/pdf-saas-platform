@@ -40,7 +40,10 @@ function convertTimestampToDate(timestamp: any): Date | null {
 function getPlanNameFromSubscription(
   subscription: Stripe.Subscription
 ): string {
-  const priceItem = subscription.items.data[0];
+  // Find the active price item (quantity > 0, not canceled)
+  const priceItem = subscription.items.data.find(
+    (item) => (typeof item.quantity === 'number' && item.quantity > 0) && (Boolean(item.deleted) === false)
+  ) || subscription.items.data[0];
   if (!priceItem) return "monthly";
 
   if (priceItem.price.lookup_key) {
@@ -192,7 +195,7 @@ export async function GET() {
         }
 
         effectiveStatus = subscription.status;
-        cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
+  cancelAtPeriodEnd = !!subscription.cancel_at_period_end;
       } catch (error) {
         console.error("Error syncing with Stripe:", error);
         // Continue with database values
